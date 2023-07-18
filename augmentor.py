@@ -46,20 +46,21 @@
 # # Show the transformed image with new background
 # combined_image.show()
 import random
+import PIL
 from PIL import Image
 import os
 import numpy as np
 # List of background images
-backgrounds = os.listdir('Data_source/all_data/background')
+backgrounds = os.listdir('/home/kasra/PycharmProjects/Larkimas/Data/background')
 
 # Load the image
-image = Image.open('Data_source/all_data/0010011692_0.jpg')
+image = Image.open('/home/kasra/PycharmProjects/Larkimas/Data/ai_files_20230625_1/0010019626_0.jpg')
 
 # Display the original image
 # Randomly scale the image
 scale = random.uniform(0.2, 0.7)
 new_size = (int(image.width * scale), int(image.height * scale))
-image = image.resize(new_size, Image.ANTIALIAS)
+image = image.resize(new_size, Image.LANCZOS)
 
 # Rotate the image
 angle = random.uniform(-90, 90)
@@ -87,8 +88,8 @@ new_size = (int(image.shape[1]), int(image.shape[0]))
 # image = cv2.warpAffine(image, M, (int(new_size1), int(new_size1)))
 
 # Load a random background image
-backgrounds = os.listdir('Data_source/all_data/background')
-background_image = cv2.imread('Data_source/all_data/background/' + str(random.choice(backgrounds)))
+backgrounds = os.listdir('/home/kasra/PycharmProjects/Larkimas/Data/background')
+background_image = cv2.imread('/home/kasra/PycharmProjects/Larkimas/Data/background/' + str(random.choice(backgrounds)))
 
 # Resize the background to be larger than the image
 background_image = cv2.resize(background_image, (int(1.2*new_size[0]), int(1.2*new_size[1])), interpolation=cv2.INTER_AREA)

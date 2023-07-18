@@ -48,7 +48,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the image
-image = Image.open('Data_source/all_data/rangi/0013689401_0.jpg')
+image = Image.open('/home/kasra/PycharmProjects/Larkimas/Data/ai_files_20230625_1/0010019626_0.jpg')
 
 # Display the original image
 plt.figure()
