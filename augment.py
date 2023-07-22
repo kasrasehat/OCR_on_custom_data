@@ -1,5 +1,6 @@
 import random
 import PIL
+import self as self
 from PIL import Image
 import os
 import numpy as np
@@ -8,9 +9,10 @@ import torchvision.transforms as transforms
 
 
 class Augmentor:
-    def __init__(self, backgrounds_path):
+    def __init__(self, backgrounds_path: str = None, output_size: tuple =(1080, 920)):
         self.backgrounds_path = backgrounds_path
-        self.backgrounds = os.listdir(backgrounds_path)
+        self.backgrounds = os.listdir(self.backgrounds_path)
+        self.output_size = output_size
 
     def scale_rotate_background(self, image_path):
         # Load the image
@@ -55,7 +57,7 @@ class Augmentor:
 
         # Modify the ROI of the background image with the new image
         background_image[y_offset:y_offset+image.shape[0], x_offset:x_offset+image.shape[1]] = image[:, :, ::-1]
-        resized_image = cv2.resize(background_image, (1080, 920))
+        resized_image = cv2.resize(background_image, self.output_size)
 
         return resized_image
 
@@ -71,8 +73,8 @@ class Augmentor:
 
         # Convert to numpy array for visualization
         numpy_image = np.array(gray_image)
-
-        return numpy_image
+        resized_image = cv2.resize(numpy_image, self.output_size)
+        return resized_image
 
     def _1ch_grayscale(self, image_path):
         # Load the image
@@ -83,5 +85,6 @@ class Augmentor:
 
         # Convert to numpy array for visualization
         numpy_image_1ch = np.array(gray_image_1ch)
+        resized_image = cv2.resize(numpy_image_1ch, self.output_size)
 
-        return numpy_image_1ch
+        return resized_image
