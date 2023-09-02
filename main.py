@@ -1,11 +1,19 @@
-from augment import Augmentor
-import cv2
+from custom_dataloader import ID_card_DataLoader
+from torchvision import transforms
+from torch.utils.data import DataLoader
 
-augmentor = Augmentor('/home/kasra/PycharmProjects/Larkimas/Data/background')
-processed_image = augmentor.scale_rotate_background('/home/kasra/PycharmProjects/Larkimas/Data/ai_files_20230625_1/0010038159_2.jpg')
-grayscale_image_3ch = augmentor._3ch_grayscale('/home/kasra/PycharmProjects/Larkimas/Data/ai_files_20230625_1/0010038159_2.jpg')
-grayscale_image_1ch = augmentor._1ch_grayscale('/home/kasra/PycharmProjects/Larkimas/Data/ai_files_20230625_1/0010038159_2.jpg')
-cv2.imshow('Image with Background', processed_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+height, width = 224, 224
+batch_size = 16
+trans = transforms.Compose([
+    transforms.ToPILImage(),
+    transforms.Resize((height, width)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
+
+dataset1 = ID_card_DataLoader(image_folder='/home/kasra/kasra_files/data-shenasname/ai_files_20230528',
+                              label_folder='/home/kasra/kasra_files/data-shenasname/ai_metadata_20230528.csv',
+                              transform=trans)
+dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
+for i, data in enumerate(zip(dataloader1)):
+    print(i)
 
