@@ -35,7 +35,6 @@ class CustomDataLoader(Dataset):
 
         self.transform = transform
 
-
     def __getitem__(self, item):
         image = cv2.imread(self.imagenet_folder + f'/{self.fmri_labels[item]}.JPEG')
         fmri = self.fmri_data[item]
@@ -45,9 +44,36 @@ class CustomDataLoader(Dataset):
 
         return image, fmri
 
-
     def __len__(self):
         return len(self.fmri_labels)
+
+
+class ID_card_DataLoader(Dataset):
+    """
+    Args:
+        imagenet_folder : str
+
+    Return:
+        image : np.array : (N, H, W, C)
+        labels  : np.array : (N, 1)
+    """
+    def __init__(self, image_folder: str, transform=None):
+        super(ID_card_DataLoader, self).__init__()
+
+        self.image_folder = image_folder
+        self.transform = transform
+
+    def __getitem__(self, item):
+        image = cv2.imread(self.image_folder + f'/{os.listdir(self.image_folder)[item]}')
+        label = 1
+
+        if self.transform is not None:
+            image = self.transform(image)
+
+        return image, label
+
+    def __len__(self):
+        return len(os.listdir(self.coco_folder))
 
 
 class Custom_real_DataLoader(Dataset):
@@ -65,7 +91,6 @@ class Custom_real_DataLoader(Dataset):
         self.coco_folder = coco_folder
         self.transform = transform
 
-
     def __getitem__(self, item):
         image = cv2.imread(self.coco_folder + f'/{os.listdir(self.coco_folder)[item]}')
         label = 1
@@ -74,7 +99,6 @@ class Custom_real_DataLoader(Dataset):
             image = self.transform(image)
 
         return image, label
-
 
     def __len__(self):
         return len(os.listdir(self.coco_folder))

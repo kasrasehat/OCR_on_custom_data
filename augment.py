@@ -1,6 +1,4 @@
 import random
-import PIL
-import self as self
 from PIL import Image
 import os
 import numpy as np
@@ -9,7 +7,7 @@ import torchvision.transforms as transforms
 
 
 class Augmentor:
-    def __init__(self, backgrounds_path: str = None, output_size: tuple =(1080, 920)):
+    def __init__(self, backgrounds_path: str = None, output_size: tuple = (1080, 920)):
         self.backgrounds_path = backgrounds_path
         self.backgrounds = os.listdir(self.backgrounds_path)
         self.output_size = output_size

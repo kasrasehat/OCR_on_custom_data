@@ -65,7 +65,6 @@ image = image.resize(new_size, Image.LANCZOS)
 # Rotate the image
 angle = random.uniform(-180, 180)
 image = image.rotate(angle, expand=True)
-image.show()
 image = np.array(image)
 new_size = (int(image.shape[1]), int(image.shape[0]))
 
