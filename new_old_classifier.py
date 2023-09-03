@@ -41,7 +41,6 @@ class detect_new_old():
         vector = np.exp(vector)
         return vector/vector.sum()
 
-
     def detect(self, input):
         input = cv2.imread(input)
         input = self.transform(input)

@@ -7,11 +7,11 @@ import pandas as pd
 class ID_card_DataLoader(Dataset):
     """
     Args:
-        imagenet_folder : str
+        image_folder : str
 
     Return:
         image : np.array : (N, H, W, C)
-        labels  : np.array : (N, 1)
+        labels  : np.array : (N, )
     """
     def __init__(self, image_folder: str, label_folder: str, transform=None):
         super(ID_card_DataLoader, self).__init__()
@@ -21,6 +21,13 @@ class ID_card_DataLoader(Dataset):
         self.transform = transform
         self.labels = pd.read_csv(self.label_folder)
         self.image_files = os.listdir(self.image_folder)
+
+        # Pre-filter the list of image files to only include those with valid labels
+        self.valid_indices = []
+        for idx, file_name in enumerate(self.image_files):
+            national_id, _ = file_name.split('.')[0].split('_')
+            if self.search_by_national_id(national_id, self.labels) is not None:
+                self.valid_indices.append(idx)
 
     @staticmethod
     def convert_to_persian_numbers(arabic_str):
@@ -79,7 +86,7 @@ class ID_card_DataLoader(Dataset):
                 'Father Name': row['FATHER_NAME'],
                 'Birth Date': row['BIRTH_DATE'],
                 'Persian Birth Date': self.convert_to_persian_numbers(row['PERSIAN_BIRTH_DATE']),
-                'National ID Serial': row['NATIONAL_ID_SERIAL'],
+                'National ID Serial': row['NATIONAL_ID_SERIAL'].upper(),
                 'Index': row.name  # row.name contains the index
             }
 
@@ -98,38 +105,44 @@ class ID_card_DataLoader(Dataset):
         Returns:
         - A string containing the formatted text output in Persian.
         """
-        if result['data'] is None:
-            return None
-
         # Convert the birthdate to Persian numerals
-        persian_birth_date = self.convert_to_persian_numbers(result['data']['PERSIAN_BIRTH_DATE'])
+        persian_birth_date = self.convert_to_persian_numbers(result['Persian Birth Date'])
 
         # Format the text output
         if type == 0:
             text_output = (
-                f"شماره ملی: {result['data']['National_ID']}\n"
-                f"نام: {result['data']['First Name']}\n"
-                f"نام خانوادگی: {result['data']['Last Name']}\n"
+                f"شماره ملی: {result['National_ID']}\n"
+                f"نام: {result['First Name']}\n"
+                f"نام خانوادگی: {result['Last Name']}\n"
                 f"تاریخ تولد: {persian_birth_date}\n"
-                f"نام پدر: {result['data']['Father Name']}"
+                f"نام پدر: {result['Father Name']}"
             )
         elif type == 1:
-            text_output = f"شماره سریال: {result['data']['NATIONAL_ID_SERIAL']}"
+            text_output = f"شماره سریال: {result['National ID Serial']}"
         elif type == 2:
             text_output = (
-                f"نام: {result['data']['FIRST_NAME']}\n"
-                f"نام خانوادگی: {result['data']['LAST_NAME']}\n"
-                f"نام پدر: {result['data']['FATHER_NAME']}\n"
+                f"نام: {result['First Name']}\n"
+                f"نام خانوادگی: {result['Last Name']}\n"
+                f"نام پدر: {result['Father Name']}\n"
                 f"تاریخ تولد: {persian_birth_date}")
 
         return text_output
 
     def __getitem__(self, item):
 
-        result = self.search_by_national_id(self.image_files[item].split('.')[0].split('_')[0], self.labels)
+        # Use the valid index
+        actual_idx = self.valid_indices[item]
+        file_name = self.image_files[actual_idx]
+        result = self.search_by_national_id(file_name.split('.')[0].split('_')[0], self.labels)
         if result:
-            image = cv2.imread(self.image_folder + f'/{os.listdir(self.image_folder)[item]}')
-            label = self.format_result_to_persian_text(result, self.image_files[item].split('.')[0].split('_')[1])
+            try:
+                image = cv2.imread(self.image_folder + '/' + file_name)
+                label = self.format_result_to_persian_text(result, int(file_name.split('.')[0].split('_')[1]))
+            except Exception as e:
+                with open("/home/kasra/PycharmProjects/Larkimas/corrupted_files.log", "a") as log_file:
+                    log_file.write(f"An error occurred while reading {file_name}: {e}\n")
+                image = cv2.imread(self.image_folder + '/' + file_name)
+                label = self.format_result_to_persian_text(result, int(file_name.split('.')[0].split('_')[1]))
 
         if result:
             if self.transform is not None:
@@ -138,33 +151,6 @@ class ID_card_DataLoader(Dataset):
         return image, label
 
     def __len__(self):
-        return len(os.listdir(self.image_folder))
+        return len(self.valid_indices)
 
-
-class Custom_real_DataLoader(Dataset):
-    """
-    Args:
-        imagenet_folder : str
-
-    Return:
-        image : np.array : (N, H, W, C)
-        labels  : np.array : (N, 1)
-    """
-    def __init__(self, coco_folder: str, transform=None):
-        super(Custom_real_DataLoader, self).__init__()
-
-        self.coco_folder = coco_folder
-        self.transform = transform
-
-    def __getitem__(self, item):
-        image = cv2.imread(self.coco_folder + f'/{os.listdir(self.coco_folder)[item]}')
-        label = 1
-
-        if self.transform is not None:
-            image = self.transform(image)
-
-        return image, label
-
-    def __len__(self):
-        return len(os.listdir(self.coco_folder))
 
