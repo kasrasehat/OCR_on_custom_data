@@ -32,12 +32,19 @@ class Augmentor:
         background_image = cv2.imread(background_image_path)
 
         # Resize the background to be larger than the image
-        coef = np.random.randint(11, 18)/10
+        coef = np.random.randint(10, 26)/10
         background_image = cv2.resize(background_image, (int(coef*new_size[0]), int(coef*new_size[1])), interpolation=cv2.INTER_NEAREST)
 
         # Define a region of interest (ROI) where you want to place the image on the background
-        x_offset = int((background_image.shape[1] - image.shape[1]) / 2)
-        y_offset = int((background_image.shape[0] - image.shape[0]) / 2)
+        x_offset1 = int((background_image.shape[1] - image.shape[1]) / 2)
+        y_offset1 = int((background_image.shape[0] - image.shape[0]) / 2)
+        x_offset = random.randint(0, 2 * x_offset1)
+        y_offset = random.randint(0, 2 * y_offset1)
+        if coef == 1:
+            transport = np.array([0, 0])
+        else:
+            transport = [(x_offset - x_offset1) / x_offset1, (y_offset - y_offset1) / y_offset1]
+
         roi = background_image[y_offset:y_offset+image.shape[0], x_offset:x_offset+image.shape[1]]
 
         # Ensure the image sizes match the ROI
@@ -57,7 +64,7 @@ class Augmentor:
         background_image[y_offset:y_offset+image.shape[0], x_offset:x_offset+image.shape[1]] = image[:, :, ::-1]
         resized_image = cv2.resize(background_image, self.output_size)
 
-        return resized_image
+        return resized_image, angle, transport, 1/coef
 
     def _3ch_grayscale(self, image_path):
         # Load the image
