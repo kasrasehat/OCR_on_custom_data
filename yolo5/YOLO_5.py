@@ -23,6 +23,37 @@ def get_four_vertices(top_left, bottom_right):
     return [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]
 
 
+def draw_rectangle_2vertices(image_path, top_left, bottom_right):
+    """
+    Draws a rectangle on the image based on given top-left and bottom-right vertices.
+
+    Parameters:
+        image_path (str): Path to the image file
+        top_left (tuple): (x1, y1) coordinates of the top-left vertex
+        bottom_right (tuple): (x2, y2) coordinates of the bottom-right vertex
+    """
+
+    # Read the image using OpenCV
+    image = cv2.imread(image_path)
+
+    # Check if the image was loaded successfully
+    if image is None:
+        print("Could not open or find the image.")
+        return
+
+    # Extract coordinates from the tuples
+    x1, y1 = np.int32(top_left[0]), np.int32(top_left[1])
+    x2, y2 = np.int32(bottom_right[0]), np.int32(bottom_right[1])
+
+    # Draw the rectangle on the image
+    cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+    # Show the image
+    cv2.imshow('Image with Rectangle', image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
 def draw_rectangle(image_path, vertices):
     """
     Draws a rectangle on the image based on given vertices.
@@ -46,7 +77,7 @@ def draw_rectangle(image_path, vertices):
 
     # Draw the rectangle on the image
     cv2.polylines(image, [points], isClosed=True, color=(0, 255, 0), thickness=3)
-
+    #image = cv2.resize(image, (1920, 1080))
     # Show the image
     cv2.imshow('Image with Rectangle', image)
     cv2.waitKey(0)
@@ -55,10 +86,11 @@ def draw_rectangle(image_path, vertices):
 
 # Model
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s').to(device)  # or yolov5m, yolov5l, yolov5x, custom
+model = torch.hub.load('ultralytics/yolov5', 'yolov5m').to(device)  # or yolov5m, yolov5l, yolov5x, custom
 
 # Images
-img = r'/home/kasra/kasra_files/data-shenasname/ai_files_20230606/0011926661_2.jpg'  # or file, Path, PIL, OpenCV, numpy, list
+img = '/home/kasra/kasra_files/data-shenasname/ai_files_20230528/0011582121_0.jpg'  # or file, Path, PIL, OpenCV, numpy, list
+image = cv2.imread(img)
 
 # Inference
 results = model(img)
@@ -75,12 +107,13 @@ for obj in results.crop():
 
     if obj['cls'] == 0:
         # Show the image using OpenCV
-        top_left = (obj['box'][0].item(), obj['box'][1].item())
-        bottom_right = (obj['box'][2].item(), obj['box'][3].item())
+        top_left = (np.int32(obj['box'][0].item()), np.int32(obj['box'][1].item()))
+        bottom_right = (np.int32(obj['box'][2].item()), np.int32(obj['box'][3].item()))
         vertices = get_four_vertices(top_left, bottom_right)
+        # draw_rectangle_2vertices(image_path= img, top_left=top_left, bottom_right= bottom_right)
         draw_rectangle(img, vertices)
-        cv2.imshow('Image', obj['im'])
-        cv2.waitKey(0)  # Wait for any key press to close the window
-        cv2.destroyAllWindows()  # Close all windows
+        # cv2.imshow('Image', obj['im'])
+        # cv2.waitKey(0)  # Wait for any key press to close the window
+        # cv2.destroyAllWindows()  # Close all windows
         print('ok')
 
