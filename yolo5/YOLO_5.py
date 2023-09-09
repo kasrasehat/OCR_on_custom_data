@@ -1,6 +1,7 @@
 import torch
 import cv2
 import numpy as np
+import os
 
 
 def get_four_vertices(top_left, bottom_right):
@@ -84,15 +85,38 @@ def draw_rectangle(image_path, vertices):
     cv2.destroyAllWindows()
 
 
+def save_image(image, path):
+    """
+    Save an image to a specified path.
+
+    Parameters:
+        image (ndarray): The image to be saved.
+        path (str): The path where the image will be saved.
+    """
+    # Create the directory if it doesn't exist
+    directory = os.path.dirname(path)
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+
+    # Save the image
+    cv2.imwrite(path, image)
+
+
 # Model
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-model = torch.hub.load('ultralytics/yolov5', 'yolov5m').to(device)  # or yolov5m, yolov5l, yolov5x, custom
+model = torch.hub.load('ultralytics/yolov5', 'yolov5n').to(device)  # or yolov5m, yolov5l, yolov5x, custom
 
 # Images
-img = '/home/kasra/kasra_files/data-shenasname/ai_files_20230528/0011582121_0.jpg'  # or file, Path, PIL, OpenCV, numpy, list
+img = 'E:/codes_py/Larkimas/Data_source/all_data/classification_data/train/3/0018465811_2.jpg'  # or file, Path, PIL, OpenCV, numpy, list
 image = cv2.imread(img)
+new_width = 224
+new_height = 224
 
+# Resize the image
+image = cv2.resize(image, (new_width, new_height))
 # Inference
+img = 'E:/codes_py/Larkimas/Data_source/all_data/image.jpg'
+save_image(image, img)
 results = model(img)
 
 # Results

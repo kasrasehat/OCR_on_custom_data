@@ -180,10 +180,9 @@ def main(args):
          param.requires_grad_(False)
     #
     # #model.config.ctc_loss_reduction = "mean"
-    k = 5
+    k = 15
     for i in range(1, k):
         list(model.parameters())[-i].requires_grad_(True)
-
 
     def count_trainable_parameters(model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -193,12 +192,12 @@ def main(args):
     def count_parameters(model):
         return sum(p.numel() for p in model.parameters())
 
-    print(f'The model has {count_parameters(model)} trainable parameters')
+    print(f'The model has {count_parameters(model)} parameters in sum')
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
     #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_step_size, gamma=args.lr_gamma)
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[5, 15, 30], gamma=args.lr_gamma)
+    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[3, 5, 30], gamma=args.lr_gamma)
 
 
     if args.resume:
@@ -226,23 +225,23 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='PyTorch Classification Training')
 
-    parser.add_argument('--data-dir', default='E:\codes_py\Larkimas\Data', help='dataset')
-    parser.add_argument('--model', default='resnet34', help='model')
+    parser.add_argument('--data-dir', default='E:/codes_py/Larkimas/Data_source/all_data/classification_data', help='dataset')
+    parser.add_argument('--model', default='resnet152', help='model')
     parser.add_argument('--device', default=[0], help='device')
-    parser.add_argument('-b', '--batch-size', default=32, type=int)
+    parser.add_argument('-b', '--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=40, type=int, metavar='N',
                         help='number of total epochs to run')
     parser.add_argument('-j', '--workers', default=1, type=int, metavar='N',
                         help='number of data loading workers (default: 16)')
-    parser.add_argument('--lr', default=0.01, type=float, help='initial learning rate')
+    parser.add_argument('--lr', default=0.001, type=float, help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                         help='momentum')
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
     parser.add_argument('--lr-gamma', default=0.1, type=float, help='decrease lr by a factor of lr-gamma')
-    parser.add_argument('--print-freq', default=10, type=int, help='print frequency')
-    parser.add_argument('--eval-freq', default=20, type=int, help='validation frequency of batchs')
+    parser.add_argument('--print-freq', default=20, type=int, help='print frequency')
+    parser.add_argument('--eval-freq', default=40, type=int, help='validation frequency of batchs')
     parser.add_argument('--checkpoints', default='./checkpoints', help='path where to save')
     parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument(

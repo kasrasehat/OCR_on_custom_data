@@ -14,8 +14,8 @@ class detect_new_old():
     def __init__(self):
 
         self.device_id = [0]
-        self.checkpoint = 'checkpoints/resnet34_10_0.9500.pth'
-        self.model_name = 'resnet34'
+        self.checkpoint = 'checkpoints/resnet152_2_0.9592.pth'
+        self.model_name = 'resnet152'
         classes = torch.load(self.checkpoint)['classes']
         self.model = torchvision.models.__dict__[self.model_name](pretrained=False)
         num_ftrs = self.model.fc.in_features
