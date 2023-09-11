@@ -14,13 +14,12 @@ class detect_new_old():
     def __init__(self):
 
         self.device_id = [0]
-        self.checkpoint = 'checkpoints/resnet152_2_0.9592.pth'
+        self.checkpoint = 'E:/codes_py/Larkimas/checkpoints/resnet152_10_0.9719.pth'
         self.model_name = 'resnet152'
         classes = torch.load(self.checkpoint)['classes']
         self.model = torchvision.models.__dict__[self.model_name](pretrained=False)
         num_ftrs = self.model.fc.in_features
         self.model.fc = nn.Linear(num_ftrs, len(classes))
-        self.model = nn.DataParallel(self.model, device_ids=self.device_id)
         self.model.cuda()
         self.model.load_state_dict(torch.load(self.checkpoint)['model'])
         self.model.eval()
@@ -28,7 +27,7 @@ class detect_new_old():
         #
         self.transform = transforms.Compose([
              transforms.ToPILImage(),
-             transforms.Resize((224, 224)),
+             transforms.Resize((720, 720)),
              transforms.ToTensor(),
              normalize,
              self.expand])

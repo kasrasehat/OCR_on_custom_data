@@ -46,44 +46,9 @@ import torchvision.transforms as transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
-
+from new_old_classifier import detect_new_old
 # Load the image
-image = Image.open('E:/codes_py/Larkimas/Data/train/0/0010327142_2.jpg')
-
-# Display the original image
-plt.figure()
-plt.imshow(image)
-plt.title('Original Image')
-plt.show()
-
-# Define the transform to convert the image to grayscale
-transform = transforms.Grayscale(num_output_channels=3)
-
-# Apply the transform
-gray_image = transform(image)
-
-# Convert to numpy array for visualization
-numpy_image = np.array(gray_image)
-
-# Display the grayscale image
-plt.figure()
-plt.imshow(numpy_image, cmap='gray')
-plt.title('Grayscale Image')
-plt.show()
-
-transform1 = transforms.Compose([
-    transforms.Grayscale(num_output_channels=1),
-    transforms.ToTensor(),
-])
-
-# Apply the transform
-gray_image_1ch = image.convert('L')
-
-# Convert to numpy array for visualization
-numpy_image_1ch = np.array(gray_image_1ch)
-
-# Display the grayscale image
-plt.figure()
-plt.imshow(gray_image_1ch, cmap='gray')
-plt.title('Grayscale one channel Image')
-plt.show()
+path = 'E:/codes_py/Larkimas/Data/train/0/0010327142_2.jpg'
+detector = detect_new_old()
+a = detector.detect(path)
+f = 1

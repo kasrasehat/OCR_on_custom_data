@@ -8,6 +8,7 @@ import numpy as np
 import glob
 import tqdm
 from new_old_classifier import detect_new_old
+from augment import Augmentor
 
 
 def get_four_vertices(top_left, bottom_right):
@@ -96,56 +97,62 @@ def save_image(image, path):
     # Save the image
     cv2.imwrite(path, image)
 
+
+augmentor = Augmentor('E:/codes_py/Larkimas/Data_source/all_data/background')
 detector = detect_new_old()
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-model = torch.hub.load('ultralytics/yolov5', 'yolov5n').to(device)
+model = torch.hub.load('ultralytics/yolov5', 'yolov5l').to(device)
 files = glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.CSV') + glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.csv')
 file_list = []
 
+# create list of files including existed images and corresponding excel file
 for file in files:
     file_list.append([file.replace('\\', '/'), file.split('.')[0].replace('metadata', 'files').replace('\\', '/')])
 
+# read image file and its corresponding Excel file and create new ones for augmented data
 for index, file in tqdm.tqdm(enumerate(file_list)):
 
     # create new folder for augmented images
     folder_path = file[1] + '_A'
     create_folder_if_not_exists(folder_path)
-    valid_indices = []
     labels = pd.read_csv(file[0])
-    labels['class'] = None
-    labels['person_coord'] = None
+    labels[['CLASS', 'PERSON_COORD', 'ROTATION', 'SCALE']] = None
+    labels.to_csv(file[0], index=False)
     csv_path = file[0].split('.')[0] + '_A' + '.' + file[0].split('.')[1]
     create_csv_if_not_exists(csv_path, labels)
     new_csv = pd.read_csv(csv_path)
-
+    tot_images = 0
+    # read images one by one from each folder and its corresponding Excel file
     for idx, file_name in enumerate(os.listdir(file[1])):
 
         national_id, flag = file_name.split('.')[0].split('_')
         exist = search_by_national_id(national_id, labels)
 
-        if exist != False:
+        if isinstance(exist, list):
             if int(flag) in [0, 1]:
-                labels.iloc[exist[1]]['class'] = int(flag)
+                labels.loc[exist[1], 'CLASS'] = int(flag)
             else:
-                labels.iloc[exist[1]]['class'] = detector.detect(
-                    file[1] + '/' + file_name)
-            image = cv2.imread(file[1] + '/' + file_name)
-            new_width = 224
-            new_height = 224
+                labels.loc[exist[1], 'CLASS'] = detector.detect(file[1] + '/' + file_name)
 
-            # Resize the image
-            image = cv2.resize(image, (new_width, new_height))
-            # Inference
-            save_path = 'E:/codes_py/Larkimas/Data_source/all_data/image.jpg'
+            image = cv2.imread(file[1] + '/' + file_name)
+            new_width = 720
+            new_height = 720
             if flag != 1:
+                # Resize the image
+                image = cv2.resize(image, (new_width, new_height))
+                # Inference
+                save_path = 'E:/codes_py/Larkimas/Data_source/all_data/image.jpg'
                 save_image(image, save_path)
                 results = model(save_path)
                 for obj in results.crop():
                     if obj['cls'] == 0:
+                        tot_images += 1
                         top_left = (np.int32(obj['box'][0].item()), np.int32(obj['box'][1].item()))
                         bottom_right = (np.int32(obj['box'][2].item()), np.int32(obj['box'][3].item()))
                         vertices = get_four_vertices(top_left, bottom_right)
-                        labels.iloc[search_by_national_id(national_id, labels)[1]]['person_coord'] = vertices
+                        labels.loc[exist[1], 'PERSON_COORD'] = vertices
+                        new_csv.loc[len(new_csv)] = labels.loc[exist[1]][:8]
+
 
 
 

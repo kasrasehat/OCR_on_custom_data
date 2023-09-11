@@ -126,9 +126,9 @@ def main(args):
     dataset = torchvision.datasets.ImageFolder(
              traindir,
              transforms.Compose([
-                    transforms.Resize((256, 256)),
+                    transforms.Resize((720, 720)),
                     #transforms.RandomResizedCrop(224),
-                    transforms.RandomCrop(224),
+                    #transforms.RandomCrop(224),
                     transforms.RandomRotation(30),
                     transforms.RandomGrayscale(p=0.4),
                     #transforms.Grayscale(num_output_channels=3),
@@ -145,7 +145,7 @@ def main(args):
     dataset_test = torchvision.datasets.ImageFolder(
                 valdir,
                 transforms.Compose([
-                    transforms.Resize((224, 224)),
+                    transforms.Resize((720, 720)),
                     #transforms.CenterCrop(299),
                     #transforms.Grayscale(num_output_channels=3),
                     transforms.ToTensor(),
@@ -161,7 +161,7 @@ def main(args):
     print(classes)
 
     val_dataloader = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1000,
+        dataset_test, batch_size=32,
         shuffle=False, num_workers=args.workers, pin_memory=True)
 
     print("Creating model")
@@ -180,7 +180,7 @@ def main(args):
          param.requires_grad_(False)
     #
     # #model.config.ctc_loss_reduction = "mean"
-    k = 15
+    k = 20
     for i in range(1, k):
         list(model.parameters())[-i].requires_grad_(True)
 
@@ -240,8 +240,8 @@ if __name__ == "__main__":
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
     parser.add_argument('--lr-gamma', default=0.1, type=float, help='decrease lr by a factor of lr-gamma')
-    parser.add_argument('--print-freq', default=20, type=int, help='print frequency')
-    parser.add_argument('--eval-freq', default=40, type=int, help='validation frequency of batchs')
+    parser.add_argument('--print-freq', default=60, type=int, help='print frequency')
+    parser.add_argument('--eval-freq', default=120, type=int, help='validation frequency of batchs')
     parser.add_argument('--checkpoints', default='./checkpoints', help='path where to save')
     parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument(
