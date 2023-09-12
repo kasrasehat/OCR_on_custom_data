@@ -137,9 +137,9 @@ for index, file in tqdm.tqdm(enumerate(file_list)):
             image = cv2.imread(file[1] + '/' + file_name)
             new_width = 720
             new_height = 720
+            # Resize the image
+            image = cv2.resize(image, (new_width, new_height))
             if flag != 1:
-                # Resize the image
-                image = cv2.resize(image, (new_width, new_height))
                 # Inference
                 save_path = 'E:/codes_py/Larkimas/Data_source/all_data/image.jpg'
                 save_image(image, save_path)
@@ -152,6 +152,10 @@ for index, file in tqdm.tqdm(enumerate(file_list)):
                         vertices = get_four_vertices(top_left, bottom_right)
                         labels.loc[exist[1], 'PERSON_COORD'] = vertices
                         new_csv.loc[len(new_csv)] = labels.loc[exist[1]][:8]
+                        processed_image, angle, transport, scale = augmentor.scale_rotate_background(
+                            file[1] + '/' + file_name)
+                        transport = np.array(transport) * 720
+                        transform_matrix = transform(angle, transport, scale)
 
 
 

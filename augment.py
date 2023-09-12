@@ -7,7 +7,7 @@ import torchvision.transforms as transforms
 
 
 class Augmentor:
-    def __init__(self, backgrounds_path: str = None, output_size: tuple = (500, 500)):
+    def __init__(self, backgrounds_path: str = None, output_size: tuple = (720, 720)):
         self.backgrounds_path = backgrounds_path
         self.backgrounds = os.listdir(self.backgrounds_path)
         self.output_size = output_size
@@ -43,7 +43,8 @@ class Augmentor:
         if coef == 1:
             transport = np.array([0, 0])
         else:
-            transport = [(x_offset - x_offset1) / x_offset1, (y_offset - y_offset1) / y_offset1]
+            # transport = [(x_offset - x_offset1) / x_offset1, (y_offset - y_offset1) / y_offset1]
+            transport = [x_offset - x_offset1, y_offset - y_offset1]
 
         roi = background_image[y_offset:y_offset+image.shape[0], x_offset:x_offset+image.shape[1]]
 
@@ -63,7 +64,8 @@ class Augmentor:
         # Modify the ROI of the background image with the new image
         background_image[y_offset:y_offset+image.shape[0], x_offset:x_offset+image.shape[1]] = image[:, :, ::-1]
         resized_image = cv2.resize(background_image, self.output_size)
-
+        transport_ratio = [self.output_size[1] / background_image.shape[1], self.output_size[0] / background_image.shape[0]]
+        transport = [transport_ratio[0] * transport[0], transport_ratio[1] * transport[1]]
         return resized_image, angle, transport, 1/coef
 
     def _3ch_grayscale(self, image_path):
