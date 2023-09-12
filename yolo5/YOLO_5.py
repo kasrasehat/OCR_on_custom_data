@@ -8,7 +8,7 @@ import cv2
 
 def transform_vertices(vertices, transformation_matrix):
     # Convert the list of tuples to a numpy array of shape (4, 2)
-    vertices_array = np.array(vertices)
+    vertices_array = np.array(vertices) - np.ones_like(vertices)*360
 
     # Homogeneous coordinates: Add a column of ones to the vertices array
     vertices_homogeneous = np.hstack([vertices_array, np.ones((vertices_array.shape[0], 1))])
