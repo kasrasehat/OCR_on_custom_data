@@ -20,6 +20,7 @@ class detect_new_old():
         self.model = torchvision.models.__dict__[self.model_name](pretrained=False)
         num_ftrs = self.model.fc.in_features
         self.model.fc = nn.Linear(num_ftrs, len(classes))
+        self.model = nn.DataParallel(self.model, device_ids=self.device_id)
         self.model.cuda()
         self.model.load_state_dict(torch.load(self.checkpoint)['model'])
         self.model.eval()
@@ -44,7 +45,7 @@ class detect_new_old():
         input = cv2.imread(input)
         input = self.transform(input)
         with torch.no_grad():
-            y_pred = self.model(input)
+            y_pred = self.model(input).to('cpu')
 
-        res = torch.argmax(y_pred)
+        res = torch.argmax(y_pred).item()
         return res

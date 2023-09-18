@@ -19,6 +19,9 @@ def transform_vertices(vertices, transformation_matrix):
     # Convert back to Cartesian coordinates
     transformed_vertices_cartesian = transformed_vertices[:, :2] / transformed_vertices[:, 2][:, np.newaxis]
     transformed_vertices_cartesian = transformed_vertices_cartesian + np.ones_like(transformed_vertices_cartesian)*360
+    for i in range(transformed_vertices_cartesian.shape[0]):
+        for j in range(transformed_vertices_cartesian.shape[1]):
+            transformed_vertices_cartesian[i, j] = int(transformed_vertices_cartesian[i, j])
     # Convert the numpy array back to a list of tuples
     transformed_vertices_list = [tuple(coord) for coord in transformed_vertices_cartesian]
 

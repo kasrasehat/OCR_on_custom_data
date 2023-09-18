@@ -65,8 +65,8 @@ class Augmentor:
         background_image[y_offset:y_offset+image.shape[0], x_offset:x_offset+image.shape[1]] = image[:, :, ::-1]
         resized_image = cv2.resize(background_image, self.output_size)
         transport_ratio = [self.output_size[1] / background_image.shape[1], self.output_size[0] / background_image.shape[0]]
-        transport = [transport_ratio[0] * transport[0], transport_ratio[1] * transport[1]]
-        return resized_image, angle, transport, 1/coef
+        transport = [np.round(transport_ratio[0] * transport[0], 1), np.round(transport_ratio[1] * transport[1], 1)]
+        return resized_image, np.round(angle, 2), transport, np.round(1/coef, 2)
 
     def _3ch_grayscale(self, image_path):
         # Load the image
