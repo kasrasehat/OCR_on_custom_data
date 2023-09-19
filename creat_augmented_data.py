@@ -236,18 +236,21 @@ for index, file in tqdm.tqdm(enumerate(file_list)):
                 else:
                     card_type = detector.detect(file[1] + '/' + file_name)
 
-                if labels.loc[exist[1], 'CLASS'].empty():
+                p = 0
+                if pd.isna(labels.loc[exist[1], 'CLASS']):
                     labels.loc[exist[1], 'CLASS'] = card_type
                     labels.loc[exist[1], 'ROTATION'] = 0
                     labels.loc[exist[1], 'SCALE'] = 0
                     labels.at[exist[1], 'TRANSPORT'] = [0, 0]
+                    p = exist[1]
                 elif labels.loc[exist[1], 'CLASS'] != card_type:
-                    l = len(labels)
-                    labels.loc[l, labels.columns[:8]] = labels.loc[exist[1], labels.columns[:8]]
-                    labels.loc[l, 'CLASS'] = card_type
-                    labels.loc[l, 'ROTATION'] = 0
-                    labels.loc[l, 'SCALE'] = 0
-                    labels.at[l, 'TRANSPORT'] = [0, 0]
+                    l1 = len(labels)
+                    labels.loc[l1, labels.columns[:8]] = labels.loc[exist[1], labels.columns[:8]]
+                    labels.loc[l1, 'CLASS'] = card_type
+                    labels.loc[l1, 'ROTATION'] = 0
+                    labels.loc[l1, 'SCALE'] = 0
+                    labels.at[l1, 'TRANSPORT'] = [0, 0]
+                    p = l1
 
                 image = cv2.imread(file[1] + '/' + file_name)
                 new_width = 720
@@ -265,7 +268,7 @@ for index, file in tqdm.tqdm(enumerate(file_list)):
                             top_left = (np.int32(obj['box'][0].item()), np.int32(obj['box'][1].item()))
                             bottom_right = (np.int32(obj['box'][2].item()), np.int32(obj['box'][3].item()))
                             vertices = get_four_vertices(top_left, bottom_right)
-                            labels.at[exist[1], 'PERSON_COORD'] = vertices
+                            labels.at[p, 'PERSON_COORD'] = vertices
                             processed_image, angle, transport, scale = augmentor.scale_rotate_background(
                                 file[1] + '/' + file_name)
                             transport1 = [transport[0], transport[1]]
@@ -275,12 +278,12 @@ for index, file in tqdm.tqdm(enumerate(file_list)):
                                                                       transformation_matrix=transform_matrix)
                             processed_image_path = augmented_image_folder_path + '/' + file_name
                             if not os.path.exists(processed_image_path):
-                                l = len(new_csv)
-                                new_csv.loc[l, new_csv.columns[:8]] = labels.loc[exist[1], labels.columns[:8]]
-                                new_csv.at[l, 'PERSON_COORD'] = transformed_vertices
-                                new_csv.loc[l, 'ROTATION'] = np.round(np.radians(angle) / np.pi, 2)
-                                new_csv.loc[l, 'SCALE'] = scale
-                                new_csv.at[l, 'TRANSPORT'] = transport1
+                                l2 = len(new_csv)
+                                new_csv.loc[l2, new_csv.columns[:8]] = labels.loc[p, labels.columns[:8]]
+                                new_csv.at[l2, 'PERSON_COORD'] = transformed_vertices
+                                new_csv.loc[l2, 'ROTATION'] = np.round(np.radians(angle) / np.pi, 2)
+                                new_csv.loc[l2, 'SCALE'] = scale
+                                new_csv.at[l2, 'TRANSPORT'] = transport1
                             save_image(processed_image, augmented_image_folder_path + '/' + file_name)
                             if tot_images % 100 == 0:
                                 new_csv.to_csv(csv_path, encoding='UTF-8-SIG', index=False)
@@ -291,7 +294,7 @@ for index, file in tqdm.tqdm(enumerate(file_list)):
                     top_left = (np.int32(0), np.int32(0))
                     bottom_right = (np.int32(0), np.int32(0))
                     vertices = get_four_vertices(top_left, bottom_right)
-                    labels.at[exist[1], 'PERSON_COORD'] = vertices
+                    labels.at[p, 'PERSON_COORD'] = vertices
                     processed_image, angle, transport, scale = augmentor.scale_rotate_background(
                         file[1] + '/' + file_name)
                     transport1 = [transport[0], transport[1]]
@@ -302,12 +305,12 @@ for index, file in tqdm.tqdm(enumerate(file_list)):
                                                               transformation_matrix=transform_matrix)
                     processed_image_path = augmented_image_folder_path + '/' + file_name
                     if not os.path.exists(processed_image_path):
-                        l = len(new_csv)
-                        new_csv.loc[l][:8] = labels.loc[exist[1]][:8]
-                        new_csv.at[l, 'PERSON_COORD'] = vertices
-                        new_csv.loc[l, 'ROTATION'] = np.round(np.radians(angle) / np.pi, 2)
-                        new_csv.loc[l, 'SCALE'] = scale
-                        new_csv.at[l, 'TRANSPORT'] = transport1
+                        l2 = len(new_csv)
+                        new_csv.loc[l2, new_csv.columns[:8]] = labels.loc[p, labels.columns[:8]]
+                        new_csv.at[l2, 'PERSON_COORD'] = vertices
+                        new_csv.loc[l2, 'ROTATION'] = np.round(np.radians(angle) / np.pi, 2)
+                        new_csv.loc[l2, 'SCALE'] = scale
+                        new_csv.at[l2, 'TRANSPORT'] = transport1
 
                     save_image(processed_image, augmented_image_folder_path + '/' + file_name)
                     if tot_images % 100 == 0:
