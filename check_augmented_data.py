@@ -5,6 +5,7 @@ import numpy as np
 import os
 from augment import Augmentor
 import cv2
+from ast import literal_eval
 
 
 def draw_rectangle(image_path, vertices):
@@ -37,14 +38,24 @@ def draw_rectangle(image_path, vertices):
     cv2.destroyAllWindows()
 
 
-img = 'E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/ai_files_20230610_1_A/0010090657_0'
-csv_path = '/'.join(str(f) for f in img.split('/')[:-1]).replace('files', 'metadata') + '.csv'
-id, cls = img.split('/')[-1].split('_')
-labels = pd.read_csv(csv_path, encoding='UTF-8-SIG')
+img = 'E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/ai_files_20230606_2_A/0011852879_0.jpg'
+csv_path = '/'.join(str(f) for f in img.split('.')[0].split('/')[:-1]).replace('files', 'metadata') + '.csv'
+id, cls = img.split('.')[0].split('/')[-1].split('_')
+id = int(id)
+labels = pd.read_csv(csv_path, encoding='UTF-8-SIG', converters={'feature': literal_eval})
 # Find the row where 'NATIONAL_ID' is equal to 'id' and 'CLASS' is equal to 'cls'
-matching_row = labels[(labels['NATIONAL_ID'] == id)]
-#vertices =
-#draw_rectangle(img, vertices)
+matching_row_list = labels[(labels['NATIONAL_ID'] == int(id)) & (labels['CLASS'] == int(cls))].index.tolist()
+if len(matching_row_list) == 0 and int(cls) in [2, 3]:
+    if int(cls) == 2:
+        cls = 3
+        matching_row = labels[(labels['NATIONAL_ID'] == int(id)) & (labels['CLASS'] == int(cls))].index.tolist()[0]
+    elif int(cls) == 3:
+        cls = 2
+        matching_row = labels[(labels['NATIONAL_ID'] == int(id)) & (labels['CLASS'] == int(cls))].index.tolist()[0]
+else:
+    matching_row = matching_row_list[0]
+vertices = literal_eval(labels.iloc[matching_row]['PERSON_COORD'])
+draw_rectangle(img, vertices)
 
 
 

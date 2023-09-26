@@ -5,7 +5,7 @@ import glob
 import pickle
 import tqdm
 
-height, width = 224, 224
+height, width = 720, 720
 batch_size = 16
 trans = transforms.Compose([
     transforms.ToPILImage(),
@@ -13,7 +13,7 @@ trans = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
-files = glob.glob('/home/kasra/kasra_files/data-shenasname/*.CSV') + glob.glob('/home/kasra/kasra_files/data-shenasname/*.csv')
+files = glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.CSV') + glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.csv')
 file_list = []
 for file in files:
     file_list.append([file, file.split('.')[0].replace('metadata', 'files')])
@@ -23,8 +23,8 @@ min = 100
 
 for index, file in tqdm.tqdm(enumerate(file_list)):
 
-    dataset1 = ID_card_DataLoader(image_folder=file[1], label_folder=file[0], transform=trans)
-    dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=1)
+    dataset1 = ID_card_DataLoader(image_folder=file[1], label_file=file[0], transform=trans)
+    dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
     for i, data in tqdm.tqdm(enumerate(dataloader1)):
         print(i)
         print(data[0].shape)

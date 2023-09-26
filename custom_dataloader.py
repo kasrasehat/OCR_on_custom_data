@@ -2,6 +2,7 @@ from torch.utils.data import Dataset
 import cv2
 import os
 import pandas as pd
+from ast import literal_eval
 
 
 class ID_card_DataLoader(Dataset):
@@ -13,20 +14,20 @@ class ID_card_DataLoader(Dataset):
         image : np.array : (N, H, W, C)
         labels  : np.array : (N, )
     """
-    def __init__(self, image_folder: str, label_folder: str, transform=None):
+    def __init__(self, image_folder: str, label_file: str, transform=None):
         super(ID_card_DataLoader, self).__init__()
 
         self.image_folder = image_folder
-        self.label_folder = label_folder
+        self.label_file = label_file
         self.transform = transform
-        self.labels = pd.read_csv(self.label_folder)
+        self.labels = pd.read_csv(self.label_file, encoding='UTF-8-SIG', converters={'feature': literal_eval})
         self.image_files = os.listdir(self.image_folder)
 
         # Pre-filter the list of image files to only include those with valid labels
         self.valid_indices = []
         for idx, file_name in enumerate(self.image_files):
-            national_id, _ = file_name.split('.')[0].split('_')
-            if self.search_by_national_id(national_id, self.labels) is not None:
+            national_id, cls = file_name.split('.')[0].split('_')
+            if self.search_by_national_id(int(national_id), cls, self.labels) is not None:
                 self.valid_indices.append(idx)
 
     @staticmethod
@@ -58,7 +59,7 @@ class ID_card_DataLoader(Dataset):
 
     # Modify the search function to convert Persian Birth Date to Persian numbers
 
-    def search_by_national_id(self, national_id, dataframe):
+    def search_by_national_id(self, national_id, cls, dataframe):
         """
         Search for a given national ID in the dataframe and return other columns' values and index if found.
 
@@ -71,23 +72,40 @@ class ID_card_DataLoader(Dataset):
             None: If the national ID is not found.
         """
         # Search for the national ID in the 'NATIONAL_ID' column
-        match = dataframe[dataframe['NATIONAL_ID'] == int(national_id)]
+        matching_row = None
+        matching_row_list = dataframe[(dataframe['NATIONAL_ID'] == int(national_id)) & (dataframe['CLASS'] == int(cls))].index.tolist()
+        if len(matching_row_list) == 0 and int(cls) in [2, 3]:
+            if int(cls) == 2:
+                cls = 3
+                matching_row_list = dataframe[(dataframe['NATIONAL_ID'] == int(national_id)) & (dataframe['CLASS'] == int(cls))].index.tolist()
+            elif int(cls) == 3:
+                cls = 2
+                matching_row_list = dataframe[(dataframe['NATIONAL_ID'] == int(national_id)) & (dataframe['CLASS'] == int(cls))].index.tolist()
+
+        if len(matching_row_list) != 0:
+            matching_row = matching_row_list[0]
 
         # If a match is found
-        if not match.empty:
+        if matching_row is not None and not pd.isna(dataframe.loc[matching_row, 'PERSON_COORD']):
             # Extract the first match (assuming national IDs are unique)
-            row = match.iloc[0]
+            row = dataframe.iloc[matching_row]
 
             # Prepare the result dictionary
             result = {
-                'National_ID': row['NATIONAL_ID'],
+                'National_ID': int(row['NATIONAL_ID']),
                 'First Name': row['FIRST_NAME'],
                 'Last Name': row['LAST_NAME'],
                 'Father Name': row['FATHER_NAME'],
                 'Birth Date': row['BIRTH_DATE'],
                 'Persian Birth Date': self.convert_to_persian_numbers(row['PERSIAN_BIRTH_DATE']),
                 'National ID Serial': row['NATIONAL_ID_SERIAL'].upper(),
+                'Class': row['CLASS'],
+                'Person_coordinate': literal_eval(row['PERSON_COORD']),
+                'Rotation': row['ROTATION'],
+                'Scale': row['SCALE'],
+                'Transport': literal_eval(row['TRANSPORT']),
                 'Index': row.name  # row.name contains the index
+
             }
 
             return result
@@ -133,7 +151,7 @@ class ID_card_DataLoader(Dataset):
         # Use the valid index
         actual_idx = self.valid_indices[item]
         file_name = self.image_files[actual_idx]
-        result = self.search_by_national_id(file_name.split('.')[0].split('_')[0], self.labels)
+        result = self.search_by_national_id(int(file_name.split('.')[0].split('_')[0]), int(file_name.split('.')[0].split('_')[1]), self.labels)
         if result:
             try:
                 image = cv2.imread(self.image_folder + '/' + file_name)
