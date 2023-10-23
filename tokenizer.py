@@ -12,9 +12,9 @@ def read_pickle_file(file_path):
         return f"An error occurred: {e}"
 
 
-max_length = 150
-tokens = read_pickle_file('/home/kasra/PycharmProjects/Larkimas/tokens_list.pkl')
-tokens[:0] = ['<eos>', '<sos>']
+max_length = 160
+tokens = read_pickle_file('E:/codes_py/Larkimas/tokens_list.pkl')
+tokens[:0] = ['<sos>', '<eos>', 'a', 'b', 'c', 'd']
 
 
 def char2ind(char):
@@ -22,7 +22,7 @@ def char2ind(char):
 
 
 def ind2char(ind):
-    return tokens.index(ind)
+    return tokens[ind]
 
 
 def ind2one_hot(ind):

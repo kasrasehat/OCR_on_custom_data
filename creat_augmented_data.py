@@ -240,7 +240,7 @@ for index, file in tqdm.tqdm(enumerate(file_list)):
                 if pd.isna(labels.loc[exist[1], 'CLASS']):
                     labels.loc[exist[1], 'CLASS'] = card_type
                     labels.loc[exist[1], 'ROTATION'] = 0
-                    labels.loc[exist[1], 'SCALE'] = 0
+                    labels.loc[exist[1], 'SCALE'] = 1
                     labels.at[exist[1], 'TRANSPORT'] = [0, 0]
                     p = exist[1]
                 elif labels.loc[exist[1], 'CLASS'] != card_type:
@@ -248,7 +248,7 @@ for index, file in tqdm.tqdm(enumerate(file_list)):
                     labels.loc[l1, labels.columns[:8]] = labels.loc[exist[1], labels.columns[:8]]
                     labels.loc[l1, 'CLASS'] = card_type
                     labels.loc[l1, 'ROTATION'] = 0
-                    labels.loc[l1, 'SCALE'] = 0
+                    labels.loc[l1, 'SCALE'] = 1
                     labels.at[l1, 'TRANSPORT'] = [0, 0]
                     p = l1
 

@@ -8,6 +8,72 @@ import cv2
 from ast import literal_eval
 
 
+def get_transformation_matrix(rotation, scale, translation):
+    """
+    Calculate the transformation matrix based on the given rotation, scale, and translation.
+
+    Parameters:
+        rotation (float): The rotation angle in degrees.
+        scale (float): The scale factor.
+        translation (tuple): A tuple (tx, ty) representing the x and y translation.
+
+    Returns:
+        np.array: The 3x3 transformation matrix.
+    """
+    # Convert rotation angle to radians
+    theta = np.radians(rotation)
+
+    # Create individual transformation matrices
+    # Rotation matrix
+    T_rot = np.array([
+        [np.cos(theta), -np.sin(theta), 0],
+        [np.sin(theta),  np.cos(theta), 0],
+        [0            ,              0, 1]
+    ])
+
+    # Scale matrix
+    T_scale = np.array([
+        [scale,    0, 0],
+        [0,    scale, 0],
+        [0,        0, 1]
+    ])
+
+    # Translation matrix
+    tx, ty = translation
+    T_trans = np.array([
+        [1, 0, tx],
+        [0, 1, ty],
+        [0, 0,  1]
+    ])
+
+    # Combine transformations
+    T = np.dot(T_trans, np.dot(T_rot, T_scale))
+
+    return T
+
+
+def transform_vertices(vertices, transformation_matrix):
+    # Convert the list of tuples to a numpy array of shape (4, 2)
+    vertices_array = np.array(vertices) - np.ones_like(vertices)*360
+
+    # Homogeneous coordinates: Add a column of ones to the vertices array
+    vertices_homogeneous = np.hstack([vertices_array, np.ones((vertices_array.shape[0], 1))])
+
+    # Apply the transformation matrix
+    transformed_vertices = np.dot(transformation_matrix, vertices_homogeneous.T).T
+
+    # Convert back to Cartesian coordinates
+    transformed_vertices_cartesian = transformed_vertices[:, :2] / transformed_vertices[:, 2][:, np.newaxis]
+    transformed_vertices_cartesian = transformed_vertices_cartesian + np.ones_like(transformed_vertices_cartesian)*360
+    for i in range(transformed_vertices_cartesian.shape[0]):
+        for j in range(transformed_vertices_cartesian.shape[1]):
+            transformed_vertices_cartesian[i, j] = int(transformed_vertices_cartesian[i, j])
+    # Convert the numpy array back to a list of tuples
+    transformed_vertices_list = [tuple(coord) for coord in transformed_vertices_cartesian]
+
+    return transformed_vertices_list
+
+
 def draw_rectangle(image_path, vertices):
     """
     Draws a rectangle on the image based on given vertices.
@@ -56,6 +122,7 @@ else:
     matching_row = matching_row_list[0]
 vertices = literal_eval(labels.iloc[matching_row]['PERSON_COORD'])
 draw_rectangle(img, vertices)
+# draw_rectangle(img, transform_vertices([(0,40),(720, 40),(720,680),(0, 680)], get_transformation_matrix(-labels.iloc[matching_row].ROTATION*180, labels.iloc[matching_row].SCALE, literal_eval(labels.iloc[matching_row].TRANSPORT))))
 
 
 

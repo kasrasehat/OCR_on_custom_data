@@ -196,9 +196,8 @@ def main(args):
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_step_size, gamma=args.lr_gamma)
+    # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_step_size, gamma=args.lr_gamma)
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[3, 5, 30], gamma=args.lr_gamma)
-
 
     if args.resume:
         checkpoint = torch.load(args.resume, map_location='cpu')
