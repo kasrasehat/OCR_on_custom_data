@@ -41,7 +41,7 @@ trans = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
-files = glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.CSV') + glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.csv')
+files = glob.glob('/home/kasra/kasra_files/data-shenasname/*.CSV') + glob.glob('/home/kasra/kasra_files/data-shenasname/*.csv')
 file_list = []
 for file in files:
     file_list.append([file, file.split('.')[0].replace('metadata', 'files')])
@@ -57,9 +57,9 @@ for index, file in tqdm.tqdm(enumerate(file_list)):
     # Iterate through the DataLoader to get one dictionary for each data point
     for batch in dataloader1:
         images, labels = batch  # Unpack the batch into images and labels
-        for i in range(len(images)):
-            image = images[i]
-            label = labels['passage'][i]
+        # for i in range(len(images)):
+        #     image = images[i]
+        #     label = labels['passage'][i]
             # Process the image and label as needed
             # 'image' and 'label' are now one dictionary for each data point in the batch
 #     for i, data in tqdm.tqdm(enumerate(dataloader1)):

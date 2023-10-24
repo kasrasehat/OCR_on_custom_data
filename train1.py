@@ -32,29 +32,49 @@ def timeSince(since, percent):
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
 
-def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1, epoch, start, criterion_mse, criterion_ctc):
+def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1, epoch, start, criterion_mse, criterion_ctc, batch_size, file_name):
 
     encoder.train()
     decoder.train()
     batch_loss = 0
     pp = 0
-    tot_loss = 0
+    tot_loss_ctc= 0
+    tot_loss_mse = 0
     for batch_idx, (images, target) in enumerate(dataloader1):
 
         images, target = images.to(device), target
-        target_encoder = torch.cat((target['person_coordinate'], target['rotation'].unsqueeze(1), target['scale'].unsqueeze(1), target['transport']), dim=1).to(device)
+        target_encoder = torch.cat((target['person_coordinate'], target['rotation'].unsqueeze(1), target['scale'].unsqueeze(1), target['transport']), dim=1).to(device).float()
         target_decoder = target['encoded_passage'].to(device)
-        loss_tot = 0
         image_features, feature_vector, output_mse = encoder(images)
         output_ctc, decoder_hidden, _ = decoder(image_features, feature_vector, target_decoder)
-        input_lengths = torch.full((8,), 350)  # All logits sequences have length 160
-        target_lengths = torch.full((8,), 160)  # All target sequences have length 160
-
+        input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
+        target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
+        for i in range(batch_size):
+            zero_numbers = (target_decoder[i, :] == 0).sum()
+            target_lengths[i] = target_lengths[i] - zero_numbers
         # CTC Loss
-        with torch.backends.cudnn.flags(enabled=False):
-            loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
+        # with torch.backends.cudnn.flags(enabled=False):
+        #     loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
+        loss_ctc = nn.functional.ctc_loss(
+                    output_ctc,
+                    target_decoder,
+                    input_lengths,
+                    target_lengths,
+                    blank=0,
+                    reduction='sum',
+                    zero_infinity=True,
+                )
+
         loss_mse = criterion_mse(output_mse, target_encoder)
         print(f'ctc loss is {loss_ctc.item()} and mse loss is {loss_mse.item()}')
+        # loss_mse.backward(retain_graph=True)
+        # encoder_optimizer.step()
+        # tot_loss_mse += loss_mse.item()
+        loss_ctc.backward()
+        decoder_optimizer.step()
+        encoder_optimizer.step()
+        tot_loss_ctc += loss_ctc.item()
+
 #         input_values = input_data[int(data[i])].to(device)
 #         loss = model(**input_values).loss
 #         batch_loss += loss
@@ -66,15 +86,15 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
 #         tot_loss += batch_loss.item()
 #         batch_loss = 0
 #
-#         if batch_idx % args.log_interval == 1 :
-#
-#             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-#                 epoch, (batch_idx+1) * len(data), len(train_loader.dataset),
-#                        100. * (batch_idx+1) / len(train_loader),
-#                        tot_loss / ((batch_idx + 1) * len(data))))
-#
-#     print('Epoch: {}\tLoss: {:.6f}'.format(epoch, tot_loss / (len(train_loader.dataset))))
-#     return None
+        if batch_idx % args.log_interval == 1 :
+
+            print('Train Epoch on {}: {} [{}/{} ({:.0f}%)]\tLoss ctc: {:.6f}\t Loss mse: {:.6f}'.format(
+                file_name, epoch, (batch_idx+1) * batch_size, len(dataloader1)* batch_size,
+                       100 * (batch_idx+1) / len(dataloader1),
+                       loss_ctc.item(), loss_mse.item()))
+
+    print('Epoch {} at the end of {} final losses\nLoss mse: {:.6f}\t Loss ctc: {:.6f}'.format(epoch, file_name, tot_loss_mse / (len(dataloader1)*batch_size), tot_loss_ctc/ (len(dataloader1)*batch_size)))
+    return
 #
 #
 # def evaluation(args, model, device, test_loader, optimizer, val_loss_min, epoch, input_data):
@@ -117,9 +137,9 @@ def main():
                         help='input batch size for training (default: 64)')
     parser.add_argument('--valid-batch-size', type=int, default=1, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+    parser.add_argument('--epochs', type=int, default=20, metavar='N',
                         help='number of epochs to train (default: 14)')
-    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
+    parser.add_argument('--lr', type=float, default=0.0001, metavar='LR',
                         help='learning rate (default: 1.0)')
     parser.add_argument('--gamma', type=float, default=0.3, metavar='M',
                         help='Learning rate step gamma (default: 0.7)')
@@ -176,7 +196,8 @@ def main():
         param.requires_grad_(False)
         #
         # #model.config.ctc_loss_reduction = "mean"
-    k = 60
+    k = 50
+
     for i in range(1, k):
         list(encoder.parameters())[-i].requires_grad_(True)
 
@@ -201,8 +222,8 @@ def main():
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
-    files = glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.CSV') + glob.glob(
-        'E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.csv')
+    files = glob.glob('/home/kasra/kasra_files/data-shenasname/*.CSV') + glob.glob(
+        '/home/kasra/kasra_files/data-shenasname/*.csv')
     file_list = []
     for file in files:
         file_list.append([file, file.split('.')[0].replace('metadata', 'files')])
@@ -211,12 +232,11 @@ def main():
     criterion_ctc = nn.CTCLoss(blank=0, reduction='sum', zero_infinity=True)
     val_loss_min = np.Inf
     for epoch in range(1, args.epochs + 1):
-        start = time.time()
         for index, file in tqdm.tqdm(enumerate(file_list)):
             dataset1 = ID_card_DataLoader(image_folder=file[1], label_file=file[0], transform=trans)
             dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
             start = time.time()
-            train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1, epoch, start, criterion_mse, criterion_ctc)
+            train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1, epoch, start, criterion_mse, criterion_ctc, args.batch_size, file[1])
             scheduler_enc.step()
             scheduler_dec.step()
             out_loss = evaluation(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, testloader, epoch, val_loss_min)

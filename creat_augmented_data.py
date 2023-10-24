@@ -199,11 +199,11 @@ def save_image(image, path, overwrite=True):
         cv2.imwrite(path, image)
 
 
-augmentor = Augmentor('E:/codes_py/Larkimas/Data_source/all_data/background')
+augmentor = Augmentor('/home/kasra/PycharmProjects/Larkimas/Data/background')
 detector = detect_new_old()
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 model = torch.hub.load('ultralytics/yolov5', 'yolov5l').to(device)
-files = glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.CSV') + glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.csv')
+files = glob.glob('/home/kasra/kasra_files/data-shenasname/*.CSV') + glob.glob('/home/kasra/kasra_files/data-shenasname/*.csv')
 file_list = []
 
 # create list of files including existed images and corresponding excel file
@@ -259,7 +259,7 @@ for index, file in tqdm.tqdm(enumerate(file_list)):
                 image = cv2.resize(image, (new_width, new_height))
                 if flag != 1:
                     # Inference
-                    save_path = 'E:/codes_py/Larkimas/Data_source/all_data/image.jpg'
+                    save_path = '/home/kasra/kasra_files/data-shenasname/save_files/imgtest.jpg'
                     save_image(image, save_path, overwrite=True)
                     results = model(save_path)
                     for obj in results.crop():

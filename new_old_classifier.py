@@ -14,7 +14,7 @@ class detect_new_old():
     def __init__(self):
 
         self.device_id = [0]
-        self.checkpoint = 'E:/codes_py/Larkimas/checkpoints/resnet152_10_0.9719.pth'
+        self.checkpoint = '/home/kasra/PycharmProjects/Larkimas/checkpoints/resnet152_10_0.9719.pth'
         self.model_name = 'resnet152'
         classes = torch.load(self.checkpoint)['classes']
         self.model = torchvision.models.__dict__[self.model_name](pretrained=False)

@@ -20,7 +20,7 @@ import numpy as np
 
 SOS_token = 0
 device = torch.device("cuda:0" if True else "cpu")
-MAX_LENGTH = 350
+MAX_LENGTH = 160
 
 
 class Encoder(nn.Module):
@@ -68,7 +68,7 @@ class Encoder(nn.Module):
         out = self.fc2(feature_vector)  # Final Output
         out = self.sigmoid(out)
 
-        return img_features, feature_vector.unsqueeze(0), out
+        return img_features.float(), feature_vector.float().unsqueeze(0), out.float()
 
 
 class DecoderRNN(nn.Module):
@@ -102,7 +102,7 @@ class DecoderRNN(nn.Module):
 
         decoder_outputs = torch.cat(decoder_outputs, dim=1)
         decoder_outputs = F.log_softmax(decoder_outputs, dim=-1)
-        return decoder_outputs.permute(1, 0, 2), decoder_hidden, None
+        return decoder_outputs.float().permute(1, 0, 2), decoder_hidden.float(), None
         # We return `None` for consistency in the training loop
 
     def forward_step(self, input, hidden):

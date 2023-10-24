@@ -104,8 +104,8 @@ def draw_rectangle(image_path, vertices):
     cv2.destroyAllWindows()
 
 
-img = 'E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/ai_files_20230606_2_A/0011852879_0.jpg'
-csv_path = '/'.join(str(f) for f in img.split('.')[0].split('/')[:-1]).replace('files', 'metadata') + '.csv'
+img = '/home/kasra/kasra_files/data-shenasname/ai_files_20230606_2_A/0011852879_0.jpg'
+csv_path = '/'.join(str(f) for f in img.split('.')[0].split('/')[:-2]) + '/'+ '/'.join(str(f) for f in img.split('.')[0].split('/')[-2:-1]).replace('files', 'metadata') + '.csv'
 id, cls = img.split('.')[0].split('/')[-1].split('_')
 id = int(id)
 labels = pd.read_csv(csv_path, encoding='UTF-8-SIG', converters={'feature': literal_eval})
