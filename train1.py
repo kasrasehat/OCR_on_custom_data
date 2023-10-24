@@ -47,7 +47,7 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
         loss_tot = 0
         image_features, feature_vector, output_mse = encoder(images)
         output_ctc, decoder_hidden, _ = decoder(image_features, feature_vector, target_decoder)
-        input_lengths = torch.full((8,), 160)  # All logits sequences have length 160
+        input_lengths = torch.full((8,), 350)  # All logits sequences have length 160
         target_lengths = torch.full((8,), 160)  # All target sequences have length 160
 
         # CTC Loss

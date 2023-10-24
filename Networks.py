@@ -20,7 +20,7 @@ import numpy as np
 
 SOS_token = 0
 device = torch.device("cuda:0" if True else "cpu")
-MAX_LENGTH = 160
+MAX_LENGTH = 350
 
 
 class Encoder(nn.Module):
@@ -90,14 +90,18 @@ class DecoderRNN(nn.Module):
 
             if target_tensor is not None:
                 # Teacher forcing: Feed the target as the next input
-                decoder_input = target_tensor[:, i].unsqueeze(1) # Teacher forcing
+                if i < target_tensor.shape[1]:
+                    decoder_input = target_tensor[:, i].unsqueeze(1) # Teacher forcing
+                else:
+                    decoder_input = (torch.zeros_like(target_tensor[:, 0])).unsqueeze(1)
+
             else:
                 # Without teacher forcing: use its own predictions as the next input
                 _, topi = decoder_output.topk(1)
                 decoder_input = topi.squeeze(-1).detach()  # detach from history as input
 
         decoder_outputs = torch.cat(decoder_outputs, dim=1)
-        # decoder_outputs = F.log_softmax(decoder_outputs, dim=-1)
+        decoder_outputs = F.log_softmax(decoder_outputs, dim=-1)
         return decoder_outputs.permute(1, 0, 2), decoder_hidden, None
         # We return `None` for consistency in the training loop
 
