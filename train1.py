@@ -40,58 +40,54 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
     pp = 0
     tot_loss_ctc= 0
     tot_loss_mse = 0
+    group_loss_ctc = 0
+    group_loss_mse = 0
     for batch_idx, (images, target) in enumerate(dataloader1):
 
-        images, target = images.to(device), target
-        target_encoder = torch.cat((target['person_coordinate'], target['rotation'].unsqueeze(1), target['scale'].unsqueeze(1), target['transport']), dim=1).to(device).float()
-        target_decoder = target['encoded_passage'].to(device)
-        image_features, feature_vector, output_mse = encoder(images)
-        output_ctc, decoder_hidden, _ = decoder(image_features, feature_vector, target_decoder)
-        input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
-        target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
-        for i in range(batch_size):
-            zero_numbers = (target_decoder[i, :] == 127).sum()
-            target_lengths[i] = target_lengths[i] - zero_numbers
-        # CTC Loss
-        with torch.backends.cudnn.flags(enabled=False):
-            loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
-        # loss_ctc = nn.functional.ctc_loss(
-        #             output_ctc,
-        #             target_decoder,
-        #             input_lengths,
-        #             target_lengths,
-        #             blank=127,
-        #             reduction='sum',
-        #             zero_infinity=True,
-        #         )
+        try:
+            images, target = images.to(device), target
+            target_encoder = torch.cat((target['person_coordinate'], target['rotation'].unsqueeze(1), target['scale'].unsqueeze(1), target['transport']), dim=1).to(device).float()
+            target_decoder = target['encoded_passage'].to(device)
+            image_features, feature_vector, output_mse = encoder(images)
+            output_ctc, decoder_hidden, _ = decoder(image_features, feature_vector, target_decoder)
+            input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
+            target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
+            for i in range(batch_size):
+                zero_numbers = (target_decoder[i, :] == 127).sum()
+                target_lengths[i] = target_lengths[i] - zero_numbers
+            # CTC Loss
+            with torch.backends.cudnn.flags(enabled=True):
+                loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
+            # loss_ctc = nn.functional.ctc_loss(
+            #             output_ctc,
+            #             target_decoder,
+            #             input_lengths,
+            #             target_lengths,
+            #             blank=127,
+            #             reduction='sum',
+            #             zero_infinity=True,
+            #         )
 
-        loss_mse = criterion_mse(output_mse, target_encoder)
-        print(f'ctc loss is {loss_ctc.item()} and mse loss is {loss_mse.item()}')
-        # loss_mse.backward(retain_graph=True)
-        # encoder_optimizer.step()
-        # tot_loss_mse += loss_mse.item()
-        loss_ctc.backward()
-        decoder_optimizer.step()
-        encoder_optimizer.step()
-        tot_loss_ctc += loss_ctc.item()
-
-#         input_values = input_data[int(data[i])].to(device)
-#         loss = model(**input_values).loss
-#         batch_loss += loss
-#
-#         batch_loss_mean = batch_loss/len(data)
-#         optimizer.zero_grad()
-#         batch_loss_mean.backward()
-#         optimizer.step()
-#         tot_loss += batch_loss.item()
-#         batch_loss = 0
-#
-        if batch_idx % args.log_interval == 1 :
-
-            print('Train Epoch on {}: {} [{}/{} ({:.0f}%)]\tLoss ctc: {:.6f}\t Loss mse: {:.6f}'.format(
-                file_name, epoch, (batch_idx+1) * batch_size, len(dataloader1)* batch_size,
-                       100 * (batch_idx+1) / len(dataloader1),
-                       loss_ctc.item(), loss_mse.item()))
+            loss_mse = criterion_mse(output_mse, target_encoder)
+            print(f'ctc loss is {loss_ctc.item()} and mse loss is {loss_mse.item()}')
+            loss_mse.backward()
+            encoder_optimizer.step()
+            tot_loss_mse += loss_mse.item()
+            # loss_ctc.backward()
+            # decoder_optimizer.step()
+            # encoder_optimizer.step()
+            tot_loss_ctc += loss_ctc.item()
+            group_loss_ctc += loss_ctc.item()
+            group_loss_mse += loss_mse.item()
+            if (batch_idx +1) % args.log_interval == 0 and (batch_idx != 0) :
+                print('Train Epoch on {}: {} [{}/{} ({:.0f}%)]\tLoss ctc: {:.6f}\t Loss mse: {:.6f}'.format(
+                    file_name, epoch, (batch_idx+1) * batch_size, len(dataloader1)* batch_size,
+                           100 * (batch_idx+1) / len(dataloader1),
+                           group_loss_ctc/(args.log_interval * batch_size), group_loss_mse/(args.log_interval * batch_size)))
+                group_loss_ctc = 0
+                group_loss_mse = 0
+        except Exception as e:
+            print(f"An error occurred while reading {file_name}: {e}\n")
 
     print('Epoch {} at the end of {} final losses\nLoss mse: {:.6f}\t Loss ctc: {:.6f}'.format(epoch, file_name, tot_loss_mse / (len(dataloader1)*batch_size), tot_loss_ctc/ (len(dataloader1)*batch_size)))
     return
@@ -196,7 +192,7 @@ def main():
         param.requires_grad_(False)
         #
         # #model.config.ctc_loss_reduction = "mean"
-    k = 70
+    k = 120
 
     for i in range(1, k):
         list(encoder.parameters())[-i].requires_grad_(True)
