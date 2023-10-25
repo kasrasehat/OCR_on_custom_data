@@ -15,7 +15,7 @@ def read_pickle_file(file_path):
 max_length = 160
 tokens = read_pickle_file('/home/kasra/PycharmProjects/Larkimas/tokens_list.pkl')
 tokens[:0] = ['<sos>', '<eos>', 'a', 'b', 'c', 'd']
-
+tokens.append('<pad>')
 
 def char2ind(char):
     return tokens.index(char)

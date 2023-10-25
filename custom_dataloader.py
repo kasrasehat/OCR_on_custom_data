@@ -199,7 +199,7 @@ class ID_card_DataLoader(Dataset):
         actual_idx = self.valid_indices[item]
         file_name = self.image_files[actual_idx]
         result = self.search_by_national_id(int(file_name.split('.')[0].split('_')[0]), int(file_name.split('.')[0].split('_')[1]), self.labels)
-        target_ids = np.zeros((MAX_LENGTH), dtype=np.int32)
+        target_ids = np.ones((MAX_LENGTH), dtype=np.int32) * 127
         if result:
             try:
                 image = cv2.imread(self.image_folder + '/' + file_name)

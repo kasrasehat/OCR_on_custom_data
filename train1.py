@@ -50,20 +50,20 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
         input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
         target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
         for i in range(batch_size):
-            zero_numbers = (target_decoder[i, :] == 0).sum()
+            zero_numbers = (target_decoder[i, :] == 127).sum()
             target_lengths[i] = target_lengths[i] - zero_numbers
         # CTC Loss
-        # with torch.backends.cudnn.flags(enabled=False):
-        #     loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
-        loss_ctc = nn.functional.ctc_loss(
-                    output_ctc,
-                    target_decoder,
-                    input_lengths,
-                    target_lengths,
-                    blank=0,
-                    reduction='sum',
-                    zero_infinity=True,
-                )
+        with torch.backends.cudnn.flags(enabled=False):
+            loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
+        # loss_ctc = nn.functional.ctc_loss(
+        #             output_ctc,
+        #             target_decoder,
+        #             input_lengths,
+        #             target_lengths,
+        #             blank=127,
+        #             reduction='sum',
+        #             zero_infinity=True,
+        #         )
 
         loss_mse = criterion_mse(output_mse, target_encoder)
         print(f'ctc loss is {loss_ctc.item()} and mse loss is {loss_mse.item()}')
@@ -163,7 +163,7 @@ def main():
     print(device)
 
     encoder = Encoder(feature_vec_size=1024, img_feature_size=50).to(device)
-    decoder = DecoderRNN(hidden_size=1024, output_size=127).to(device)
+    decoder = DecoderRNN(hidden_size=1024, output_size=128).to(device)
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=4e-4)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=args.lr, weight_decay=4e-4)
 
@@ -196,7 +196,7 @@ def main():
         param.requires_grad_(False)
         #
         # #model.config.ctc_loss_reduction = "mean"
-    k = 50
+    k = 70
 
     for i in range(1, k):
         list(encoder.parameters())[-i].requires_grad_(True)
@@ -229,7 +229,7 @@ def main():
         file_list.append([file, file.split('.')[0].replace('metadata', 'files')])
 
     criterion_mse = nn.MSELoss(reduction='sum')
-    criterion_ctc = nn.CTCLoss(blank=0, reduction='sum', zero_infinity=True)
+    criterion_ctc = nn.CTCLoss(blank=127, reduction='sum', zero_infinity=True)
     val_loss_min = np.Inf
     for epoch in range(1, args.epochs + 1):
         for index, file in tqdm.tqdm(enumerate(file_list)):
