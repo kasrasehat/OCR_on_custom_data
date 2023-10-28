@@ -7,6 +7,8 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import TensorDataset, DataLoader
 from torch.optim.lr_scheduler import StepLR
 import torch
+
+import tokenizer
 from custom_dataloader import ID_card_DataLoader
 from torchvision import transforms
 from torch.utils.data import DataLoader
@@ -16,6 +18,14 @@ from Networks import Encoder, DecoderRNN
 #torch.cuda.empty_cache()
 import time
 import math
+
+
+def replace_tokens(passage):
+    passage = passage.replace('a', 'روی کارت ملی')
+    passage = passage.replace('b', 'پشت کارت ملی')
+    passage = passage.replace('c', 'شناسنامه جدید')
+    passage = passage.replace('d', 'شناسنامه قدیم')
+    return passage
 
 
 def asMinutes(s):
@@ -38,7 +48,7 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
     decoder.train()
     batch_loss = 0
     pp = 0
-    tot_loss_ctc= 0
+    tot_loss_ctc = 0
     tot_loss_mse = 0
     group_loss_ctc = 0
     group_loss_mse = 0
@@ -52,11 +62,18 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
             output_ctc, decoder_hidden, _ = decoder(image_features, feature_vector, target_decoder)
             input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
             target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
+            _, topi = output_ctc.topk(1)
+            decoded_ids = topi.squeeze().permute(1, 0)
             for i in range(batch_size):
                 zero_numbers = (target_decoder[i, :] == 127).sum()
                 target_lengths[i] = target_lengths[i] - zero_numbers
+                zero_numbers1 = (decoded_ids[i, :] == 127).sum()
+                input_lengths[i] = input_lengths[i] - zero_numbers1
+
+            encoder_optimizer.zero_grad()
+            decoder_optimizer.zero_grad()
             # CTC Loss
-            with torch.backends.cudnn.flags(enabled=True):
+            with torch.backends.cudnn.flags(enabled=False):
                 loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
             # loss_ctc = nn.functional.ctc_loss(
             #             output_ctc,
@@ -79,7 +96,8 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
             tot_loss_ctc += loss_ctc.item()
             group_loss_ctc += loss_ctc.item()
             group_loss_mse += loss_mse.item()
-            if (batch_idx +1) % args.log_interval == 0 and (batch_idx != 0) :
+            #torch.cuda.empty_cache()
+            if (batch_idx +1) % args.log_interval == 0 and (batch_idx != 0):
                 print('Train Epoch on {}: {} [{}/{} ({:.0f}%)]\tLoss ctc: {:.6f}\t Loss mse: {:.6f}'.format(
                     file_name, epoch, (batch_idx+1) * batch_size, len(dataloader1)* batch_size,
                            100 * (batch_idx+1) / len(dataloader1),
@@ -89,38 +107,76 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
         except Exception as e:
             print(f"An error occurred while reading {file_name}: {e}\n")
 
+        #torch.cuda.empty_cache()
     print('Epoch {} at the end of {} final losses\nLoss mse: {:.6f}\t Loss ctc: {:.6f}'.format(epoch, file_name, tot_loss_mse / (len(dataloader1)*batch_size), tot_loss_ctc/ (len(dataloader1)*batch_size)))
-    return
-#
-#
-# def evaluation(args, model, device, test_loader, optimizer, val_loss_min, epoch, input_data):
-#
-#     model.eval()
-#     val_loss = 0
-#     with torch.no_grad():
-#
-#         for batch_idx, (data, target) in enumerate(test_loader):
-#
-#             data, target = data, target
-#             for i in range(len(data)):
-#
-#                 input_values = input_data[int(data[i])].to(device)
-#                 loss = model(**input_values).loss
-#                 val_loss += loss.item()
-#
+    return tot_loss_mse / (len(dataloader1)*batch_size), tot_loss_ctc/ (len(dataloader1)*batch_size)
+
+
+def evaluation(args, encoder, decoder, device, test_loader,
+               epoch, mse_loss, ctc_loss, batch_size, criterion_mse, criterion_ctc,
+               mse_loss_min, ctc_loss_min, encoder_optimizer, decoder_optimizer):
+
+    encoder.eval()
+    decoder.eval()
+    val_loss = 0
+    with torch.no_grad():
+
+        for batch_idx, (images, target) in enumerate(test_loader):
+            try:
+                images, target = images.to(device), target
+                target_encoder = torch.cat((target['person_coordinate'], target['rotation'].unsqueeze(1),
+                                            target['scale'].unsqueeze(1), target['transport']), dim=1).to(device).float()
+
+                target_decoder = target['encoded_passage'].to(device)
+                image_features, feature_vector, output_mse = encoder(images)
+
+                print('target features are:\n{}'.format(target_encoder))
+                print('output features are:\n{}'.format(output_mse))
+                output_ctc, decoder_hidden, _ = decoder(image_features, feature_vector, None)
+                input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
+                target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
+
+                for i in range(batch_size):
+                    zero_numbers = (target_decoder[i, :] == 127).sum()
+                    target_lengths[i] = target_lengths[i] - zero_numbers
+
+                # CTC Loss
+                with torch.backends.cudnn.flags(enabled=False):
+                    loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
+
+                loss_mse = criterion_mse(output_mse, target_encoder)
+                print(f'ctc loss is {loss_ctc.item()} and mse loss is {loss_mse.item()}')
+                print('target passage is: \n{}'.format(replace_tokens(target['passage'][0])))
+                _, topi = output_ctc.topk(1)
+                decoded_ids = topi.squeeze()
+
+                decoded_words = []
+                for idx in decoded_ids:
+                    if idx.item() == 1:
+                        break
+                    decoded_words.append(tokenizer.ind2char(idx.item()))
+
+                output_passage = ''.join(char for char in decoded_words)
+                print('output passage is: \n{}'.format(replace_tokens(output_passage)))
+            except Exception as e:
+                print(f"An error occurred: {e}\n")
+
+
 #     val_loss = val_loss/len(test_loader.dataset)
 #     print('\nValidation loss: {:.6f}\n'.format(val_loss))
 #     # save model if validation loss has decreased
 #     if val_loss < val_loss_min:
-#
-#         if args.save_model:
-#
-#             #filename = 'model_epock_{0}_val_loss_{1}.pt'.format(epoch, val_loss)
-#             #torch.save({'epoch': epoch, 'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict()}, filename)
-#             filename = 'E:/codes_py/speech2text/saved_models/hubert_epoch_{}'.format(epoch)
-#             torch.save(model.state_dict(), filename)
-#             val_loss_min = val_loss
-#         return val_loss_min
+        torch.cuda.empty_cache()
+        if args.save_model and (mse_loss < mse_loss_min or ctc_loss < ctc_loss_min):
+
+            filename = ('E:/codes_py/Larkimas/model_checkpoints'
+                        '/encoder_epoch_{0}_val_encoder_{1}.pt').format(epoch, np.round(ctc_loss, 1))
+            torch.save({'epoch': epoch, 'state_dict encoder': encoder.state_dict(),
+                        'encoder_optimizer': encoder_optimizer.state_dict(), 'state_dict decoder': decoder.state_dict(),
+                        'decoder_optimizer': decoder_optimizer.state_dict()}, filename)
+            mse_loss_min = mse_loss
+        return mse_loss_min, ctc_loss_min
+
 #
 #     else:
 #         return None
@@ -129,7 +185,7 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
 def main():
     # argparse = argparse.parse_args()
     parser = argparse.ArgumentParser(description='PyTorch speech2text')
-    parser.add_argument('--batch-size', type=int, default=8, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=6, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--valid-batch-size', type=int, default=1, metavar='N',
                         help='input batch size for testing (default: 1000)')
@@ -160,6 +216,7 @@ def main():
 
     encoder = Encoder(feature_vec_size=1024, img_feature_size=50).to(device)
     decoder = DecoderRNN(hidden_size=1024, output_size=128).to(device)
+
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=4e-4)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=args.lr, weight_decay=4e-4)
 
@@ -192,7 +249,7 @@ def main():
         param.requires_grad_(False)
         #
         # #model.config.ctc_loss_reduction = "mean"
-    k = 120
+    k = 350
 
     for i in range(1, k):
         list(encoder.parameters())[-i].requires_grad_(True)
@@ -218,26 +275,39 @@ def main():
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
-    files = glob.glob('/home/kasra/kasra_files/data-shenasname/*.CSV') + glob.glob(
-        '/home/kasra/kasra_files/data-shenasname/*.csv')
+    # /home/kasra/kasra_files/data-shenasname/
+    files = glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.CSV') + glob.glob(
+        'E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.csv')
     file_list = []
     for file in files:
         file_list.append([file, file.split('.')[0].replace('metadata', 'files')])
 
+    files_test = glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/test_folder/*.CSV') + glob.glob(
+        'E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/test_folder/*.csv')
+    file_test = []
+    for file in files_test:
+        file_test.append([file, file.split('.')[0]])
+
     criterion_mse = nn.MSELoss(reduction='sum')
     criterion_ctc = nn.CTCLoss(blank=127, reduction='sum', zero_infinity=True)
-    val_loss_min = np.Inf
+    mse_loss_min = np.Inf
+    ctc_loss_min = np.Inf
     for epoch in range(1, args.epochs + 1):
+        start = time.time()
         for index, file in tqdm.tqdm(enumerate(file_list)):
             dataset1 = ID_card_DataLoader(image_folder=file[1], label_file=file[0], transform=trans)
             dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
-            start = time.time()
-            train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1, epoch, start, criterion_mse, criterion_ctc, args.batch_size, file[1])
+            # mse_loss, ctc_loss = train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1
+            #                           , epoch, start, criterion_mse, criterion_ctc, args.batch_size, file[1])
             scheduler_enc.step()
             scheduler_dec.step()
-            out_loss = evaluation(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, testloader, epoch, val_loss_min)
-            if out_loss is not None:
-                val_loss_min = out_loss
+            mse_loss, ctc_loss = 0, 0
+            for index, file in tqdm.tqdm(enumerate(file_test)):
+                dataset = ID_card_DataLoader(image_folder=file[1], label_file=file[0], transform=trans)
+                test_loader = DataLoader(dataset, batch_size=args.valid_batch_size, shuffle=True, drop_last=True)
+                mse_loss_min, ctc_loss_min = evaluation(args, encoder, decoder, device, test_loader,
+                                      epoch, mse_loss, ctc_loss, args.valid_batch_size, criterion_mse, criterion_ctc,
+                                      mse_loss_min, ctc_loss_min, encoder_optimizer, decoder_optimizer)
 
 
 if __name__ == '__main__':

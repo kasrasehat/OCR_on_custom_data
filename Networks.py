@@ -93,7 +93,7 @@ class DecoderRNN(nn.Module):
                 if i < target_tensor.shape[1]:
                     decoder_input = target_tensor[:, i].unsqueeze(1) # Teacher forcing
                 else:
-                    decoder_input = (torch.zeros_like(target_tensor[:, 0])).unsqueeze(1)
+                    decoder_input = (127 * torch.ones_like(target_tensor[:, 0])).unsqueeze(1)
 
             else:
                 # Without teacher forcing: use its own predictions as the next input
@@ -169,7 +169,7 @@ class AttnDecoderRNN(nn.Module):
 
 
     def forward_step(self, input, hidden, encoder_outputs):
-        embedded =  self.dropout(self.embedding(input))
+        embedded = self.dropout(self.embedding(input))
 
         query = hidden.permute(1, 0, 2)
         context, attn_weights = self.attention(query, encoder_outputs)
@@ -179,3 +179,54 @@ class AttnDecoderRNN(nn.Module):
         output = self.out(output)
 
         return output, hidden, attn_weights
+
+
+class CustomModel(nn.Module):
+    def __init__(self):
+        super(CustomModel, self).__init__()
+
+        # Load pre-trained ResNet-152
+        resnet = models.resnet152(pretrained=True)
+
+        # Backbone
+        self.backbone = nn.Sequential(*list(resnet.children())[:-4])
+
+        # Layer for img_features extraction
+        self.img_features_layer = list(resnet.children())[-4]
+
+        # Regression Head
+        self.regression_head = nn.Sequential(
+            *list(resnet.children())[-4:],  # ResNet continuation from after img_features_layer
+            nn.Flatten(),
+            nn.Linear(2048, 256),  # Additional layer for extracting more complex features
+            nn.ReLU(),
+            nn.Linear(256, 12)
+        )
+
+        # Feature vector head
+        self.feature_head = nn.Sequential(
+            *list(resnet.children())[-3:],  # ResNet's continuation from after img_features_layer
+            nn.Flatten(),
+            nn.Linear(2048, 256)  # or 512 based on your preference
+        )
+
+        # Convolution layers for img_features (after removing upsample)
+        self.conv1 = nn.Conv2d(1024, 512, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(512, 256, kernel_size=3, padding=1)
+
+    def forward(self, x):
+        # Backbone
+        x = self.backbone(x)
+
+        # Extract img_features
+        img_features_input = self.img_features_layer(x)
+        img_features = self.conv1(img_features_input)
+        img_features = self.conv2(img_features)
+
+        # Regression Head
+        regression_out = self.regression_head(x)
+
+        # Feature vector head
+        feature_out = self.feature_head(img_features_input)
+
+        return img_features.float(), feature_out.float().unsqueeze(0), regression_out.float()
