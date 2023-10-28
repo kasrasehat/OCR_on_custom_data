@@ -169,8 +169,8 @@ def evaluation(args, encoder, decoder, device, test_loader,
         torch.cuda.empty_cache()
         if args.save_model and (mse_loss < mse_loss_min or ctc_loss < ctc_loss_min):
 
-            filename = ('E:/codes_py/Larkimas/model_checkpoints'
-                        '/encoder_epoch_{0}_val_encoder_{1}.pt').format(epoch, np.round(ctc_loss, 1))
+            filename = ('/home/kasra/PycharmProjects/Larkimas/model_checkpoints'
+                        '/encoder_epoch_{0}_ctc_loss_{1}.pt').format(epoch, np.round(ctc_loss, 1))
             torch.save({'epoch': epoch, 'state_dict encoder': encoder.state_dict(),
                         'encoder_optimizer': encoder_optimizer.state_dict(), 'state_dict decoder': decoder.state_dict(),
                         'decoder_optimizer': decoder_optimizer.state_dict()}, filename)
@@ -193,7 +193,7 @@ def main():
                         help='number of epochs to train (default: 14)')
     parser.add_argument('--lr', type=float, default=0.0001, metavar='LR',
                         help='learning rate (default: 1.0)')
-    parser.add_argument('--gamma', type=float, default=0.3, metavar='M',
+    parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
                         help='Learning rate step gamma (default: 0.7)')
     parser.add_argument('--no-cuda', action='store_true', default=True,
                         help='disables CUDA training')
@@ -276,8 +276,8 @@ def main():
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
     # /home/kasra/kasra_files/data-shenasname/
-    files = glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.CSV') + glob.glob(
-        'E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.csv')
+    files = glob.glob('/home/kasra/kasra_files/data-shenasname/*.CSV') + glob.glob(
+        '/home/kasra/kasra_files/data-shenasname/*.csv')
     file_list = []
     for file in files:
         file_list.append([file, file.split('.')[0].replace('metadata', 'files')])
