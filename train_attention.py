@@ -41,7 +41,33 @@ def timeSince(since, percent):
     rs = es - s
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
+def freeze_params(model, trainee):
 
+    for param in model.parameters():
+        param.requires_grad_(False)
+
+    if trainee is 'regressor':
+        for param in model.regression_head.parameters():
+            param.requires_grad_(True)
+
+    elif trainee is 'feature_extractor':
+        for submodels in [model.img_features_layer, model.feature_head, model.conv1, model.conv2]:
+            for param in submodels.parameters():
+                param.requires_grad_(True)
+
+
+    def count_trainable_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    print(f'The model has {count_trainable_parameters(encoder)} trainable parameters')
+
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters())
+
+    print(f'The model has {count_parameters(encoder)} parameters in sum')
+    # Verify which layers are unfrozen
+    for name, param in encoder.named_parameters():
+        print(name, param.requires_grad)
 def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1, epoch, start, criterion_mse, criterion_ctc, batch_size, file_name):
 
     encoder.train()
@@ -135,12 +161,17 @@ def evaluation(args, encoder, decoder, device, test_loader,
                 print('output features are:\n{}'.format(output_mse))
                 decoder_input = torch.cat((feature_vector, target_encoder.unsqueeze(0)), dim = 2)
                 output_ctc, decoder_hidden, _ = decoder(image_features, decoder_input, None)
+                _, topi = output_ctc.topk(1)
+                decoded_ids = topi.squeeze()
+                decoded_ids1 = decoded_ids.permute(1, 0)
                 input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
                 target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
 
                 for i in range(batch_size):
                     zero_numbers = (target_decoder[i, :] == 127).sum()
                     target_lengths[i] = target_lengths[i] - zero_numbers
+                    zero_numbers1 = (decoded_ids1[i, :] == 127).sum()
+                    input_lengths[i] = input_lengths[i] - zero_numbers1
 
                 # CTC Loss
                 with torch.backends.cudnn.flags(enabled=False):
@@ -149,8 +180,7 @@ def evaluation(args, encoder, decoder, device, test_loader,
                 loss_mse = criterion_mse(output_mse, target_encoder)
                 print(f'ctc loss is {loss_ctc.item()} and mse loss is {loss_mse.item()}')
                 print('target passage is: \n{}'.format(replace_tokens(target['passage'][0])))
-                _, topi = output_ctc.topk(1)
-                decoded_ids = topi.squeeze()
+
 
                 decoded_words = []
                 for idx in decoded_ids:
@@ -248,27 +278,27 @@ def main():
                 decoder_optimizer.load_state_dict(checkpoint['decoder_optimizer'])
             except Exception as e:
                 print(e)
-    for param in encoder.parameters():
-        param.requires_grad_(False)
-        #
-        # #model.config.ctc_loss_reduction = "mean"
-    k = 350
-
-    for i in range(1, k):
-        list(encoder.parameters())[-i].requires_grad_(True)
-
-    def count_trainable_parameters(model):
-        return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-    print(f'The model has {count_trainable_parameters(encoder)} trainable parameters')
-
-    def count_parameters(model):
-        return sum(p.numel() for p in encoder.parameters())
-
-    print(f'The model has {count_parameters(encoder)} parameters in sum')
-    # Verify which layers are unfrozen
-    for name, param in encoder.named_parameters():
-        print(name, param.requires_grad)
+    # for param in encoder.parameters():
+    #     param.requires_grad_(False)
+    #     #
+    #     # #model.config.ctc_loss_reduction = "mean"
+    # k = 350
+    #
+    # for i in range(1, k):
+    #     list(encoder.parameters())[-i].requires_grad_(True)
+    #
+    # def count_trainable_parameters(model):
+    #     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    #
+    # print(f'The model has {count_trainable_parameters(encoder)} trainable parameters')
+    #
+    # def count_parameters(model):
+    #     return sum(p.numel() for p in encoder.parameters())
+    #
+    # print(f'The model has {count_parameters(encoder)} parameters in sum')
+    # # Verify which layers are unfrozen
+    # for name, param in encoder.named_parameters():
+    #     print(name, param.requires_grad)
 
     height, width = 720, 720
     batch_size = args.batch_size
@@ -300,11 +330,11 @@ def main():
         for index, file in tqdm.tqdm(enumerate(file_list)):
             dataset1 = ID_card_DataLoader(image_folder=file[1], label_file=file[0], transform=trans)
             dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
-            # mse_loss, ctc_loss = train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1
-            #                           , epoch, start, criterion_mse, criterion_ctc, args.batch_size, file[1])
+            mse_loss, ctc_loss = train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1
+                                      , epoch, start, criterion_mse, criterion_ctc, args.batch_size, file[1])
             scheduler_enc.step()
             scheduler_dec.step()
-            mse_loss, ctc_loss = 0, 0
+
             for index, file in tqdm.tqdm(enumerate(file_test)):
                 dataset = ID_card_DataLoader(image_folder=file[1], label_file=file[0], transform=trans)
                 test_loader = DataLoader(dataset, batch_size=args.valid_batch_size, shuffle=True, drop_last=True)
