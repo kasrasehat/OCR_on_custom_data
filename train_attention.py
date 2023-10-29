@@ -20,6 +20,12 @@ import time
 import math
 
 
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters())
+
+def count_trainable_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
 def replace_tokens(passage):
     passage = passage.replace('a', 'روی کارت ملی')
     passage = passage.replace('b', 'پشت کارت ملی')
@@ -55,16 +61,6 @@ def freeze_params(model, trainee):
             for param in submodels.parameters():
                 param.requires_grad_(True)
 
-
-    def count_trainable_parameters(model):
-        return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-    print(f'The model has {count_trainable_parameters(encoder)} trainable parameters')
-
-    def count_parameters(model):
-        return sum(p.numel() for p in model.parameters())
-
-    print(f'The model has {count_parameters(encoder)} parameters in sum')
     # Verify which layers are unfrozen
     for name, param in encoder.named_parameters():
         print(name, param.requires_grad)
@@ -249,7 +245,8 @@ def main():
 
     encoder = CustomModel().to(device)
     decoder = DecoderRNN(hidden_size=512, output_size=128).to(device)
-
+    print(f'The Encoder has {count_parameters(encoder)} parameters in sum')
+    print(f'The Decoder has {count_parameters(decoder)} parameters in sum')
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=4e-4)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=args.lr, weight_decay=4e-4)
 
@@ -295,7 +292,7 @@ def main():
     # def count_parameters(model):
     #     return sum(p.numel() for p in encoder.parameters())
     #
-    # print(f'The model has {count_parameters(encoder)} parameters in sum')
+    print(f'The model has {count_parameters(encoder)} parameters in sum')
     # # Verify which layers are unfrozen
     # for name, param in encoder.named_parameters():
     #     print(name, param.requires_grad)
