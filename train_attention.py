@@ -14,7 +14,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 import numpy as np
 import tqdm
-from Networks import Encoder, DecoderRNN, CustomModel
+from Networks import Encoder, DecoderRNN, CustomModel, AttnDecoderRNN
 #torch.cuda.empty_cache()
 import time
 import math
@@ -47,23 +47,31 @@ def timeSince(since, percent):
     rs = es - s
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
-def freeze_params(model, trainee):
+def freeze_params(Encoder, Decoder, trainee):
 
-    for param in model.parameters():
+    for param in Encoder.parameters():
         param.requires_grad_(False)
 
-    if trainee is 'regressor':
-        for param in model.regression_head.parameters():
+    for param in Decoder.parameters():
+        param.requires_grad_(False)
+
+    if trainee == 'regressor':
+        for param in Encoder.regression_head.parameters():
             param.requires_grad_(True)
 
-    elif trainee is 'feature_extractor':
-        for submodels in [model.img_features_layer, model.feature_head, model.conv1, model.conv2]:
-            for param in submodels.parameters():
+    elif trainee == 'feature_extractor':
+
+        for submodel in [Encoder.img_features_layer, Encoder.feature_head, Encoder.conv1, Encoder.conv2]:
+            for param in submodel.parameters():
                 param.requires_grad_(True)
+        for param in Decoder.parameters():
+            param.requires_grad_(True)
+        for param in Encoder.regression_head.parameters():
+            param.requires_grad_(False)
 
     # Verify which layers are unfrozen
-    for name, param in encoder.named_parameters():
-        print(name, param.requires_grad)
+    # for name, param in encoder.named_parameters():
+    #     print(name, param.requires_grad)
 def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1, epoch, start, criterion_mse, criterion_ctc, batch_size, file_name):
 
     encoder.train()
@@ -77,8 +85,95 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
     for batch_idx, (images, target) in enumerate(dataloader1):
 
         try:
+            print('Start train model for reducing the ctc loss')
+            freeze_params(encoder, decoder, 'feature_extractor')
+            if batch_idx == 0:
+                for name, param in encoder.named_parameters():
+                    print(name, param.requires_grad)
+                print(f'The encoder has {count_parameters(encoder)} parameters in sum')
+                print(f'The decoder has {count_parameters(decoder)} parameters in sum')
+                print(f'The encoder has {count_trainable_parameters(encoder)} trainable parameters')
+                print(f'The decoder has {count_trainable_parameters(decoder)} trainable parameters')
+
             images, target = images.to(device), target
             target_encoder = torch.cat((target['person_coordinate'], target['rotation'].unsqueeze(1), target['scale'].unsqueeze(1), target['transport']), dim=1).to(device).float()
+            target_decoder = target['encoded_passage'].to(device)
+            image_features, feature_vector, output_mse = encoder(images)
+            decoder_input = torch.cat((feature_vector, target_encoder.unsqueeze(0)), dim=2)
+            output_ctc, decoder_hidden, _ = decoder(image_features, decoder_input, target_decoder)
+            input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
+            target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
+            _, topi = output_ctc.topk(1)
+            decoded_ids = topi.squeeze().permute(1, 0)
+            for i in range(batch_size):
+                zero_numbers = (target_decoder[i, :] == 127).sum()
+                target_lengths[i] = target_lengths[i] - zero_numbers
+                zero_numbers1 = (decoded_ids[i, :] == 127).sum()
+                input_lengths[i] = input_lengths[i] - zero_numbers1
+
+            encoder_optimizer.zero_grad()
+            decoder_optimizer.zero_grad()
+            # CTC Loss
+            with torch.backends.cudnn.flags(enabled=False):
+                loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
+            # loss_ctc = nn.functional.ctc_loss(
+            #             output_ctc,
+            #             target_decoder,
+            #             input_lengths,
+            #             target_lengths,
+            #             blank=127,
+            #             reduction='sum',
+            #             zero_infinity=True,
+            #         )
+
+            loss_mse = criterion_mse(output_mse, target_encoder)
+            print(f'ctc loss is {loss_ctc.item()} and mse loss is {loss_mse.item()}')
+            # loss_mse.backward()
+            # encoder_optimizer.step()
+            tot_loss_mse += loss_mse.item()
+            loss_ctc.backward()
+            decoder_optimizer.step()
+            encoder_optimizer.step()
+            tot_loss_ctc += loss_ctc.item()
+            group_loss_ctc += loss_ctc.item()
+            group_loss_mse += loss_mse.item()
+
+            if (batch_idx +1) % args.log_interval == 0 and (batch_idx != 0):
+                print('Train Epoch on {}: {} [{}/{} ({:.0f}%)]\tLoss ctc: {:.6f}\t Loss mse: {:.6f}'.format(
+                file_name, epoch, (batch_idx+1) * batch_size, len(dataloader1)* batch_size,
+                        100 * (batch_idx+1) / len(dataloader1),
+                        group_loss_ctc/(args.log_interval * batch_size), group_loss_mse/(args.log_interval * batch_size)))
+                group_loss_ctc = 0
+                group_loss_mse = 0
+        except Exception as e:
+            print(f"An error occurred while reading {file_name}: {e}\n")
+
+        #torch.cuda.empty_cache()
+    print('Epoch {} CTC TRAINING at the end of {} COMPLETED. final losses:\nLoss mse: {:.6f}\t Loss ctc: {:.6f}'.format(epoch, file_name, tot_loss_mse / (len(dataloader1)*batch_size), tot_loss_ctc/ (len(dataloader1)*batch_size)))
+    torch.cuda.empty_cache()
+
+    batch_loss = 0
+    pp = 0
+    tot_loss_ctc = 0
+    tot_loss_mse = 0
+    group_loss_ctc = 0
+    group_loss_mse = 0
+    for batch_idx, (images, target) in enumerate(dataloader1):
+
+        try:
+            print('Start train model for reducing the mse loss')
+            freeze_params(encoder, decoder, 'regressor')
+            if batch_idx == 0:
+                for name, param in encoder.named_parameters():
+                    print(name, param.requires_grad)
+                print(f'The encoder has {count_parameters(encoder)} parameters in sum')
+                print(f'The decoder has {count_parameters(decoder)} parameters in sum')
+                print(f'The encoder has {count_trainable_parameters(encoder)} trainable parameters')
+                print(f'The decoder has {count_trainable_parameters(decoder)} trainable parameters')
+
+            images, target = images.to(device), target
+            target_encoder = torch.cat((target['person_coordinate'], target['rotation'].unsqueeze(1),
+                                        target['scale'].unsqueeze(1), target['transport']), dim=1).to(device).float()
             target_decoder = target['encoded_passage'].to(device)
             image_features, feature_vector, output_mse = encoder(images)
             decoder_input = torch.cat((feature_vector, target_encoder.unsqueeze(0)), dim=2)
@@ -119,19 +214,23 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
             tot_loss_ctc += loss_ctc.item()
             group_loss_ctc += loss_ctc.item()
             group_loss_mse += loss_mse.item()
-            #torch.cuda.empty_cache()
-            if (batch_idx +1) % args.log_interval == 0 and (batch_idx != 0):
+
+            if (batch_idx + 1) % args.log_interval == 0 and (batch_idx != 0):
                 print('Train Epoch on {}: {} [{}/{} ({:.0f}%)]\tLoss ctc: {:.6f}\t Loss mse: {:.6f}'.format(
-                    file_name, epoch, (batch_idx+1) * batch_size, len(dataloader1)* batch_size,
-                           100 * (batch_idx+1) / len(dataloader1),
-                           group_loss_ctc/(args.log_interval * batch_size), group_loss_mse/(args.log_interval * batch_size)))
+                    file_name, epoch, (batch_idx + 1) * batch_size, len(dataloader1) * batch_size,
+                                      100 * (batch_idx + 1) / len(dataloader1),
+                                      group_loss_ctc / (args.log_interval * batch_size),
+                                      group_loss_mse / (args.log_interval * batch_size)))
                 group_loss_ctc = 0
                 group_loss_mse = 0
         except Exception as e:
             print(f"An error occurred while reading {file_name}: {e}\n")
 
-        #torch.cuda.empty_cache()
-    print('Epoch {} at the end of {} final losses\nLoss mse: {:.6f}\t Loss ctc: {:.6f}'.format(epoch, file_name, tot_loss_mse / (len(dataloader1)*batch_size), tot_loss_ctc/ (len(dataloader1)*batch_size)))
+        # torch.cuda.empty_cache()
+    print('Epoch {} MSE TRAINING at the end of {} COMPLETED. final losses:\nLoss mse: {:.6f}\t Loss ctc: {:.6f}'.format(
+        epoch, file_name, tot_loss_mse / (len(dataloader1) * batch_size),
+        tot_loss_ctc / (len(dataloader1) * batch_size)))
+    torch.cuda.empty_cache()
     return tot_loss_mse / (len(dataloader1)*batch_size), tot_loss_ctc/ (len(dataloader1)*batch_size)
 
 
@@ -155,7 +254,7 @@ def evaluation(args, encoder, decoder, device, test_loader,
 
                 print('target features are:\n{}'.format(target_encoder))
                 print('output features are:\n{}'.format(output_mse))
-                decoder_input = torch.cat((feature_vector, target_encoder.unsqueeze(0)), dim = 2)
+                decoder_input = torch.cat((feature_vector, output_mse.unsqueeze(0)), dim = 2)
                 output_ctc, decoder_hidden, _ = decoder(image_features, decoder_input, None)
                 _, topi = output_ctc.topk(1)
                 decoded_ids = topi.squeeze()
@@ -214,7 +313,7 @@ def evaluation(args, encoder, decoder, device, test_loader,
 def main():
     # argparse = argparse.parse_args()
     parser = argparse.ArgumentParser(description='PyTorch speech2text')
-    parser.add_argument('--batch-size', type=int, default=6, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=4, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--valid-batch-size', type=int, default=1, metavar='N',
                         help='input batch size for testing (default: 1000)')
@@ -244,9 +343,7 @@ def main():
     print(device)
 
     encoder = CustomModel().to(device)
-    decoder = DecoderRNN(hidden_size=512, output_size=128).to(device)
-    print(f'The Encoder has {count_parameters(encoder)} parameters in sum')
-    print(f'The Decoder has {count_parameters(decoder)} parameters in sum')
+    decoder = AttnDecoderRNN(hidden_size=512, output_size=128).to(device)
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=4e-4)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=args.lr, weight_decay=4e-4)
 
@@ -292,7 +389,7 @@ def main():
     # def count_parameters(model):
     #     return sum(p.numel() for p in encoder.parameters())
     #
-    print(f'The model has {count_parameters(encoder)} parameters in sum')
+    # print(f'The model has {count_parameters(encoder)} parameters in sum')
     # # Verify which layers are unfrozen
     # for name, param in encoder.named_parameters():
     #     print(name, param.requires_grad)

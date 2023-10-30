@@ -121,6 +121,7 @@ class BahdanauAttention(nn.Module):
         self.Va = nn.Linear(hidden_size, 1)
 
     def forward(self, query, keys):
+        keys = keys.view(keys.shape[0], keys.shape[1], keys.shape[2]*keys.shape[3] ).permute(0, 2 ,1)
         scores = self.Va(torch.tanh(self.Wa(query) + self.Ua(keys)))
         scores = scores.squeeze(2).unsqueeze(1)
 
@@ -131,7 +132,7 @@ class BahdanauAttention(nn.Module):
 
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size, dropout_p=0.1):
+    def __init__(self, hidden_size = 512, output_size = 128, dropout_p=0.1):
         super(AttnDecoderRNN, self).__init__()
         self.embedding = nn.Embedding(output_size, hidden_size)
         self.attention = BahdanauAttention(hidden_size)
@@ -186,17 +187,18 @@ class CustomModel(nn.Module):
         super(CustomModel, self).__init__()
 
         # Load pre-trained ResNet-152
-        resnet = models.resnet152(pretrained=True)
+        resnet1 = models.resnet152(pretrained=True)
+        resnet2 = models.resnet152(pretrained=True)
 
         # Backbone
-        self.backbone = nn.Sequential(*list(resnet.children())[:-4])
+        self.backbone = nn.Sequential(*list(resnet1.children())[:-4])
 
         # Layer for img_features extraction
-        self.img_features_layer = list(resnet.children())[-4]
+        self.img_features_layer = list(resnet1.children())[-4]
 
         # Regression Head
         self.regression_head = nn.Sequential(
-            *list(resnet.children())[-4: -1],  # ResNet continuation from after img_features_layer
+            *list(resnet2.children())[-4: -1],  # ResNet continuation from after img_features_layer
             nn.Flatten(),
             nn.Linear(2048, 256),  # Additional layer for extracting more complex features
             nn.ReLU(),
@@ -205,7 +207,7 @@ class CustomModel(nn.Module):
 
         # Feature vector head
         self.feature_head = nn.Sequential(
-            *list(resnet.children())[-3: -1],  # ResNet's continuation from after img_features_layer
+            *list(resnet1.children())[-3: -1],  # ResNet's continuation from after img_features_layer
             nn.Flatten(),
             nn.Linear(2048, 500)  # or 512 based on your preference
         )
