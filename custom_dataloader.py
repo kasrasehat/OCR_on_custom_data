@@ -166,11 +166,11 @@ class ID_card_DataLoader(Dataset):
                            'transport': result['Transport']}
         elif type == 2:
             text_output = {'passage': (
-                                f"c\n"
-                                f"نام: {result['First Name']}\n"
-                                f"نام خانوادگی: {result['Last Name']}\n"
-                                f"نام پدر: {result['Father Name']}\n"
-                                f"تاریخ تولد: {persian_birth_date}"),
+                                f"c"),
+                                # f"نام: {result['First Name']}\n"
+                                # f"نام خانوادگی: {result['Last Name']}\n"
+                                # f"نام پدر: {result['Father Name']}\n"
+                                # f"تاریخ تولد: {persian_birth_date}"),
                            'class': result['Class'],
                            'person_coordinate': result['Person_coordinate'],
                            'rotation': result['Rotation'],
@@ -178,11 +178,11 @@ class ID_card_DataLoader(Dataset):
                            'transport': result['Transport']}
         elif type == 3:
             text_output = {'passage': (
-                f"d\n"
-                f"نام: {result['First Name']}\n"
-                f"نام خانوادگی: {result['Last Name']}\n"
-                f"نام پدر: {result['Father Name']}\n"
-                f"تاریخ تولد: {persian_birth_date}"),
+                f"d"),
+                # f"نام: {result['First Name']}\n"
+                # f"نام خانوادگی: {result['Last Name']}\n"
+                # f"نام پدر: {result['Father Name']}\n"
+                # f"تاریخ تولد: {persian_birth_date}"),
                 'class': result['Class'],
                 'person_coordinate': result['Person_coordinate'],
                 'rotation': result['Rotation'],

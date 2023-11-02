@@ -9,6 +9,7 @@ import torch.nn as nn
 from torch import optim
 import torch.nn.functional as F
 import numpy as np
+import copy
 
 # model_name = 'resnet152'
 # checkpoint = 'E:/codes_py/Larkimas/checkpoints/resnet152_10_0.9719.pth'
@@ -166,7 +167,7 @@ class AttnDecoderRNN(nn.Module):
         decoder_outputs = F.log_softmax(decoder_outputs, dim=-1)
         attentions = torch.cat(attentions, dim=1)
 
-        return decoder_outputs, decoder_hidden, attentions
+        return decoder_outputs.permute(1, 0, 2), decoder_hidden, attentions
 
 
     def forward_step(self, input, hidden, encoder_outputs):
@@ -188,7 +189,7 @@ class CustomModel(nn.Module):
 
         # Load pre-trained ResNet-152
         resnet1 = models.resnet152(pretrained=True)
-        resnet2 = models.resnet152(pretrained=True)
+        resnet2 = copy.deepcopy(resnet1)
 
         # Backbone
         self.backbone = nn.Sequential(*list(resnet1.children())[:-4])
@@ -202,7 +203,8 @@ class CustomModel(nn.Module):
             nn.Flatten(),
             nn.Linear(2048, 256),  # Additional layer for extracting more complex features
             nn.ReLU(),
-            nn.Linear(256, 12)
+            nn.Linear(256, 12),
+            nn.ReLU()
         )
 
         # Feature vector head

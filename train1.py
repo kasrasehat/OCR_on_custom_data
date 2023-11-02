@@ -282,8 +282,8 @@ def main():
     for file in files:
         file_list.append([file, file.split('.')[0].replace('metadata', 'files')])
 
-    files_test = glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/test_folder/*.CSV') + glob.glob(
-        'E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/test_folder/*.csv')
+    files_test = glob.glob('/home/kasra/kasra_files/data-shenasname/validation_file/*.CSV') + glob.glob(
+        '/home/kasra/kasra_files/data-shenasname/validation_file/*.csv')
     file_test = []
     for file in files_test:
         file_test.append([file, file.split('.')[0]])
@@ -297,11 +297,10 @@ def main():
         for index, file in tqdm.tqdm(enumerate(file_list)):
             dataset1 = ID_card_DataLoader(image_folder=file[1], label_file=file[0], transform=trans)
             dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
-            # mse_loss, ctc_loss = train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1
-            #                           , epoch, start, criterion_mse, criterion_ctc, args.batch_size, file[1])
+            mse_loss, ctc_loss = train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1
+                                      , epoch, start, criterion_mse, criterion_ctc, args.batch_size, file[1])
             scheduler_enc.step()
             scheduler_dec.step()
-            mse_loss, ctc_loss = 0, 0
             for index, file in tqdm.tqdm(enumerate(file_test)):
                 dataset = ID_card_DataLoader(image_folder=file[1], label_file=file[0], transform=trans)
                 test_loader = DataLoader(dataset, batch_size=args.valid_batch_size, shuffle=True, drop_last=True)
