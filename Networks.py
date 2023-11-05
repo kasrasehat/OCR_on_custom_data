@@ -133,8 +133,9 @@ class BahdanauAttention(nn.Module):
 
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, hidden_size = 512, output_size = 128, dropout_p=0.1):
+    def __init__(self, hidden_size = 128, output_size = 128, dropout_p=0.1):
         super(AttnDecoderRNN, self).__init__()
+        self.output_size = output_size
         self.embedding = nn.Embedding(output_size, hidden_size)
         self.attention = BahdanauAttention(hidden_size)
         self.gru = nn.GRU(2 * hidden_size, hidden_size, batch_first=True)
@@ -172,7 +173,7 @@ class AttnDecoderRNN(nn.Module):
 
     def forward_step(self, input, hidden, encoder_outputs):
         embedded = self.dropout(self.embedding(input))
-
+        # embedded = self.one_hot_encode(input)
         query = hidden.permute(1, 0, 2)
         context, attn_weights = self.attention(query, encoder_outputs)
         input_gru = torch.cat((embedded, context), dim=2)
@@ -181,6 +182,14 @@ class AttnDecoderRNN(nn.Module):
         output = self.out(output)
 
         return output, hidden, attn_weights
+
+    def one_hot_encode(self, input_tensor):
+        # Assuming input_tensor contains integer values from 0 to 127
+        batch_size, seq_len= input_tensor.size()
+        one_hot = torch.zeros(batch_size, seq_len, self.output_size, device=device)
+        one_hot = one_hot.scatter(2, input_tensor.unsqueeze(2).long(), 1)  # Fill with 1s at specified indices
+        return one_hot
+
 
 
 class CustomModel(nn.Module):
@@ -211,12 +220,12 @@ class CustomModel(nn.Module):
         self.feature_head = nn.Sequential(
             *list(resnet1.children())[-3: -1],  # ResNet's continuation from after img_features_layer
             nn.Flatten(),
-            nn.Linear(2048, 500)  # or 512 based on your preference
+            nn.Linear(2048, 116)  # or 512 based on your preference
         )
 
         # Convolution layers for img_features (after removing upsample)
         self.conv1 = nn.Conv2d(1024, 512, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(512, 512, kernel_size=1, padding=0)
+        self.conv2 = nn.Conv2d(512, 128, kernel_size=1, padding=0)
 
     def forward(self, x):
         # Backbone

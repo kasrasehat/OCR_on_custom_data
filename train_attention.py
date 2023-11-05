@@ -59,7 +59,7 @@ def freeze_params(Encoder, Decoder, trainee):
 
         for param in Encoder.regression_head.parameters():
             param.requires_grad_(True)
-        k = 200
+        k = 150
         for i in range(k):
             list(Encoder.regression_head.parameters())[i].requires_grad_(False)
 
@@ -70,7 +70,7 @@ def freeze_params(Encoder, Decoder, trainee):
             for param in submodel.parameters():
                 param.requires_grad_(True)
 
-        k = 200
+        k = 150
         for i in range(k):
             list(Encoder.img_features_layer.parameters())[i].requires_grad_(False)
 
@@ -111,7 +111,7 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
             target_decoder = target['encoded_passage'].to(device)
             image_features, feature_vector, output_mse = encoder(images)
             decoder_input = torch.cat((feature_vector, target_encoder.unsqueeze(0)), dim=2)
-            output_ctc, decoder_hidden, _ = decoder(image_features, decoder_input, target_decoder)
+            output_ctc, decoder_hidden, _ = decoder(image_features, decoder_input, None)
             input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
             target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
 
@@ -139,16 +139,16 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
             #         )
 
             loss_mse = criterion_mse(output_mse, target_encoder)
-            print(f'ctc loss is {loss_ctc.item()} and mse loss is {loss_mse.item()}')
+            print(f'ctc loss sum is {loss_ctc.item() * batch_size} and mse loss sum is {loss_mse.item() * batch_size}')
             # loss_mse.backward()
             # encoder_optimizer.step()
-            tot_loss_mse += loss_mse.item()
+            tot_loss_mse += loss_mse.item() * batch_size
             loss_ctc.backward()
             decoder_optimizer.step()
             encoder_optimizer.step()
-            tot_loss_ctc += loss_ctc.item()
-            group_loss_ctc += loss_ctc.item()
-            group_loss_mse += loss_mse.item()
+            tot_loss_ctc += loss_ctc.item() * batch_size
+            group_loss_ctc += loss_ctc.item() * batch_size
+            group_loss_mse += loss_mse.item() * batch_size
 
             if (batch_idx +1) % args.log_interval == 0 and (batch_idx != 0):
                 print('Train Epoch on {}: {} [{}/{} ({:.0f}%)]\tLoss ctc: {:.6f}\t Loss mse: {:.6f}'.format(
@@ -161,7 +161,7 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
         except Exception as e:
             print(f"An error occurred while reading {file_name}: {e}\n")
 
-        #torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
     print('Epoch {} CTC TRAINING at the end of {} COMPLETED. final losses:\nLoss mse: {:.6f}\t Loss ctc: {:.6f}'.format(epoch, file_name, tot_loss_mse / (len(dataloader1)*batch_size), tot_loss_ctc/ (len(dataloader1)*batch_size)))
     torch.cuda.empty_cache()
 
@@ -190,7 +190,7 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
             target_decoder = target['encoded_passage'].to(device)
             image_features, feature_vector, output_mse = encoder(images)
             decoder_input = torch.cat((feature_vector, target_encoder.unsqueeze(0)), dim=2)
-            output_ctc, decoder_hidden, _ = decoder(image_features, decoder_input, target_decoder)
+            output_ctc, decoder_hidden, _ = decoder(image_features, decoder_input, None)
             input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
             target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
             _, topi = output_ctc.topk(1)
@@ -215,16 +215,16 @@ def train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, 
             #         )
 
             loss_mse = criterion_mse(output_mse, target_encoder)
-            print(f'ctc loss is {loss_ctc.item()} and mse loss is {loss_mse.item()}')
+            print(f'ctc loss sum is {loss_ctc.item() * batch_size} and mse loss sum is {loss_mse.item() * batch_size}')
             loss_mse.backward()
             encoder_optimizer.step()
-            tot_loss_mse += loss_mse.item()
+            tot_loss_mse += loss_mse.item() * batch_size
             # loss_ctc.backward()
             # decoder_optimizer.step()
             # encoder_optimizer.step()
-            tot_loss_ctc += loss_ctc.item()
-            group_loss_ctc += loss_ctc.item()
-            group_loss_mse += loss_mse.item()
+            tot_loss_ctc += loss_ctc.item() * batch_size
+            group_loss_ctc += loss_ctc.item() * batch_size
+            group_loss_mse += loss_mse.item() * batch_size
 
             if (batch_idx + 1) % args.log_interval == 0 and (batch_idx != 0):
                 print('Train Epoch on {}: {} [{}/{} ({:.0f}%)]\tLoss ctc: {:.6f}\t Loss mse: {:.6f}'.format(
@@ -281,7 +281,7 @@ def evaluation(args, encoder, decoder, device, test_loader,
                     loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
 
                 loss_mse = criterion_mse(output_mse, target_encoder)
-                print(f'ctc loss is {loss_ctc.item()} and mse loss is {loss_mse.item()}')
+                print(f'ctc mean loss is {loss_ctc.item()} and mse mean loss is {loss_mse.item()}')
                 print('target passage is: \n{}'.format(replace_tokens(target['passage'][0])))
 
 
@@ -306,10 +306,11 @@ def evaluation(args, encoder, decoder, device, test_loader,
         if args.save_model and (mse_loss < mse_loss_min or ctc_loss < ctc_loss_min):
 
             filename = ('/home/kasra/PycharmProjects/Larkimas/model_checkpoints'
-                        '/encoder_epoch_{0}_ctc_loss_{1}.pt').format(epoch, np.round(ctc_loss, 1))
+                        '/epoch_{0}_ctc_l_{:.3f}_mse_l{:.3f}.pt').format(epoch, ctc_loss, mse_loss)
             torch.save({'epoch': epoch, 'state_dict encoder': encoder.state_dict(),
                         'encoder_optimizer': encoder_optimizer.state_dict(), 'state_dict decoder': decoder.state_dict(),
                         'decoder_optimizer': decoder_optimizer.state_dict()}, filename)
+            print('model has been saved in {}'.format(filename))
             mse_loss_min = mse_loss
             ctc_loss_min = ctc_loss
         return mse_loss_min, ctc_loss_min
@@ -330,13 +331,13 @@ def main():
                         help='number of epochs to train (default: 14)')
     parser.add_argument('--lr', type=float, default=0.0001, metavar='LR',
                         help='learning rate (default: 1.0)')
-    parser.add_argument('--gamma', type=float, default=0.6, metavar='M',
+    parser.add_argument('--gamma', type=float, default=0.5, metavar='M',
                         help='Learning rate step gamma (default: 0.7)')
     parser.add_argument('--no-cuda', action='store_true', default=True,
                         help='disables CUDA training')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
-    parser.add_argument('--log-interval', type=int, default=30, metavar='N',
+    parser.add_argument('--log-interval', type=int, default=50, metavar='N',
                         help='how many batches to wait before logging training status')
     parser.add_argument('--save-model', action='store_true', default=True,
                         help='For Saving the current Model')
@@ -352,12 +353,12 @@ def main():
     print(device)
 
     encoder = CustomModel().to(device)
-    decoder = AttnDecoderRNN(hidden_size=512, output_size=128).to(device)
+    decoder = AttnDecoderRNN(hidden_size=128, output_size=128).to(device)
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=args.lr)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=args.lr)
     # , weight_decay=4e-4
-    scheduler_enc = StepLR(encoder_optimizer, step_size=2, gamma=args.gamma)
-    scheduler_dec = StepLR(decoder_optimizer, step_size=2, gamma=args.gamma)
+    scheduler_enc = StepLR(encoder_optimizer, step_size=1, gamma=args.gamma)
+    scheduler_dec = StepLR(decoder_optimizer, step_size=1, gamma=args.gamma)
 
     if args.weight:
         if os.path.isfile(args.weight):
@@ -424,8 +425,8 @@ def main():
     for file in files_test:
         file_test.append([file, file.split('.')[0]])
 
-    criterion_mse = nn.MSELoss(reduction='sum')
-    criterion_ctc = nn.CTCLoss(blank=127, reduction='sum', zero_infinity=True)
+    criterion_mse = nn.MSELoss(reduction='mean')
+    criterion_ctc = nn.CTCLoss(blank=0, reduction='mean', zero_infinity=True)
     mse_loss_min = np.Inf
     ctc_loss_min = np.Inf
     for epoch in range(1, args.epochs + 1):
