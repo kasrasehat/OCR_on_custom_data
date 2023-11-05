@@ -413,14 +413,12 @@ def main():
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
     # /home/kasra/kasra_files/data-shenasname/
-    files = glob.glob('/home/kasra/kasra_files/data-shenasname/*.CSV') + glob.glob(
-        '/home/kasra/kasra_files/data-shenasname/*.csv')
+    files = glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.csv')
     file_list = []
     for file in files:
         file_list.append([file, file.split('.')[0].replace('metadata', 'files')])
 
-    files_test = glob.glob('/home/kasra/kasra_files/data-shenasname/validation_file/*.CSV') + glob.glob(
-        '/home/kasra/kasra_files/data-shenasname/validation_file/*.csv')
+    files_test = glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/test_folder/*.csv')
     file_test = []
     for file in files_test:
         file_test.append([file, file.split('.')[0]])

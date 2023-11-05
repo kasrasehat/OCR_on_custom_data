@@ -175,7 +175,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 model = torch.hub.load('ultralytics/yolov5', 'yolov5l').to(device)  # or yolov5m, yolov5l, yolov5x, custom
 
 # Images
-img = 'E:/codes_py/Larkimas/Data_source/all_data/classification_data/train/0/0014483084_0.jpg'  # or file, Path, PIL, OpenCV, numpy, list
+img = 'E:/codes_py/Larkimas/Data_source/all_data/classification_data/train/0/0014435713_0.jpg'  # or file, Path, PIL, OpenCV, numpy, list
 image = cv2.imread(img)
 new_width = 720
 new_height = 720
