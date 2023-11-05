@@ -306,7 +306,7 @@ def evaluation(args, encoder, decoder, device, test_loader,
         if args.save_model and (mse_loss < mse_loss_min or ctc_loss < ctc_loss_min):
 
             filename = ('/home/kasra/PycharmProjects/Larkimas/model_checkpoints'
-                        '/epoch_{0}_ctc_l_{:.3f}_mse_l{:.3f}.pt').format(epoch, ctc_loss, mse_loss)
+                        '/epoch_{0}_ctc_l: {1}_mse_l: {2}.pt').format(epoch, np.round(ctc_loss, 2), np.round(mse_loss, 2))
             torch.save({'epoch': epoch, 'state_dict encoder': encoder.state_dict(),
                         'encoder_optimizer': encoder_optimizer.state_dict(), 'state_dict decoder': decoder.state_dict(),
                         'decoder_optimizer': decoder_optimizer.state_dict()}, filename)
@@ -436,6 +436,7 @@ def main():
             dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
             mse_loss, ctc_loss = train(args, encoder, encoder_optimizer, decoder, decoder_optimizer, device, dataloader1
                                       , epoch, start, criterion_mse, criterion_ctc, args.batch_size, file[1])
+
             for index, file in tqdm.tqdm(enumerate(file_test)):
                 dataset = ID_card_DataLoader(image_folder=file[1], label_file=file[0], transform=trans)
                 test_loader = DataLoader(dataset, batch_size=args.valid_batch_size, shuffle=True, drop_last=True)
