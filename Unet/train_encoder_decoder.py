@@ -112,7 +112,7 @@ def train(args, model, optimizer, device, dataloader1, epoch, start, criterion_m
         except Exception as e:
             print(f"An error occurred while reading {file_name}: {e}\n")
 
-        torch.cuda.empty_cache()
+    torch.cuda.empty_cache()
     print('Epoch {} MSE TRAINING at the end of {} COMPLETED. final losses:\nLoss mse: {:.6f}'.format(epoch, file_name, tot_loss_mse / (len(dataloader1)*batch_size)))
     torch.cuda.empty_cache()
 
@@ -130,10 +130,9 @@ def evaluation(args, model, device, test_loader,
         for batch_idx, (transformed_image, original_image) in enumerate(test_loader):
             try:
                 input, target = transformed_image.to(device), original_image.to(device)
-                output= model(input)
+                output = model(input)
                 loss_mse = criterion_mse(output, target)
                 print(f'mse mean loss is {loss_mse.item()}')
-
 
             except Exception as e:
                 print(f"An error occurred: {e}\n")
@@ -145,10 +144,10 @@ def evaluation(args, model, device, test_loader,
         torch.cuda.empty_cache()
         if args.save_model and (val_loss < mse_loss_min):
 
-            filename = ('/home/kasra/PycharmProjects/Larkimas/unet_checkpoints'
+            filename = ('E:/codes_py/Larkimas/Unet/model_checkpoints'
                         '/epoch_{0}_mse_l: {1}.pt').format(epoch, np.round(mse_loss, 3))
             torch.save({'epoch': epoch, 'state_dict_model': model.state_dict(),
-                        'optimizer': optimizer.state_dict(), 'filename' : filename})
+                        'optimizer': optimizer.state_dict()}, filename)
             print('model has been saved in {}'.format(filename))
             mse_loss_min = val_loss
         return mse_loss_min
@@ -161,7 +160,7 @@ def evaluation(args, model, device, test_loader,
 def main():
     # argparse = argparse.parse_args()
     parser = argparse.ArgumentParser(description='PyTorch speech2text')
-    parser.add_argument('--batch-size', type=int, default=6, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=4, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--valid-batch-size', type=int, default=10, metavar='N',
                         help='input batch size for testing (default: 1000)')
@@ -169,7 +168,7 @@ def main():
                         help='number of epochs to train (default: 14)')
     parser.add_argument('--lr', type=float, default=0.0001, metavar='LR',
                         help='learning rate (default: 1.0)')
-    parser.add_argument('--gamma', type=float, default=0.5, metavar='M',
+    parser.add_argument('--gamma', type=float, default=0.2, metavar='M',
                         help='Learning rate step gamma (default: 0.7)')
     parser.add_argument('--no-cuda', action='store_true', default=True,
                         help='disables CUDA training')
@@ -191,7 +190,7 @@ def main():
     print(device)
 
     model = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet',
-                           in_channels=3, out_channels=3, init_features=32, pretrained=False)
+                           in_channels=3, out_channels=3, init_features=48, pretrained=False)
 
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -247,10 +246,11 @@ def main():
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
-    files = os.listdir('/home/kasra/kasra_files/data-shenasname')
+    # /home/kasra/kasra_files/data-shenasname
+    files = os.listdir('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0')
     file_list = []
     for file in files:
-        if file not in glob.glob('/home/kasra/kasra_files/data-shenasname/*.csv'):
+        if file not in glob.glob('E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/*.csv'):
             if file.split('_')[-1] == 'A':
                 file_list.append([file, '_'.join(file.split('_')[:-1])])
     criterion_mse = nn.MSELoss(reduction='mean')
@@ -259,22 +259,23 @@ def main():
         start = time.time()
         for index, file in tqdm.tqdm(enumerate(file_list)):
 
-            dataset1 = UnetDataLoader(transformed_image_file='/home/kasra/kasra_files/data-shenasname/' + file[0],
-                                      original_image_file='/home/kasra/kasra_files/data-shenasname/' + file[1],
+            dataset1 = UnetDataLoader(transformed_image_file='E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/' + file[0],
+                                      original_image_file='E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/' + file[1],
                                       transform=trans)
             dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
             mse_loss = train(args, model, optimizer, device, dataloader1
                                       , epoch, start, criterion_mse, args.batch_size, file[1])
 
 
-            dataset = UnetDataLoader(transformed_image_file='/home/kasra/kasra_files/data-shenasname/unet_test/transformed',
-                                      original_image_file='/home/kasra/kasra_files/data-shenasname/unet_test/original',
+            dataset = UnetDataLoader(transformed_image_file='E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/unet_test/transformed_images',
+                                      original_image_file='E:/codes_py/Larkimas/Data_source/UBUNTU 20_0/unet_test/original_images',
                                       transform=trans)
             test_loader = DataLoader(dataset, batch_size=args.valid_batch_size, shuffle=True, drop_last=True)
             mse_loss_min = evaluation(args, model, device, test_loader,
                                       epoch, mse_loss, args.valid_batch_size, criterion_mse,
                                       mse_loss_min, optimizer)
         scheduler_enc.step()
+
 
 if __name__ == '__main__':
     main()
