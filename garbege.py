@@ -48,7 +48,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from new_old_classifier import detect_new_old
 # Load the image
-path = 'E:/codes_py/Larkimas/Data/train/0/0010327142_2.jpg'
-detector = detect_new_old()
-a = detector.detect(path)
-f = 1
+# path = 'E:/codes_py/Larkimas/Data/train/0/0010327142_2.jpg'
+# detector = detect_new_old()
+# a = detector.detect(path)
+import pandas as pd
+a = pd.read_csv('/home/kasra/kasra_files/data-shenasname/data_loc')
