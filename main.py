@@ -1,4 +1,4 @@
-from custom_dataloader import ID_card_DataLoader
+from custom_dataloader import All_ID_card_DataLoader
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import glob
@@ -63,19 +63,17 @@ tokens = []
 max = 0
 min = 100
 p = 0
-for index, file in tqdm.tqdm(enumerate(file_list)):
+dataset1 = All_ID_card_DataLoader(data_file='/home/kasra/kasra_files/data-shenasname/data_loc', transform=trans)
+dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
 
-    dataset1 = ID_card_DataLoader(image_folder=file[1], label_file=file[0], transform=trans)
-    dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
-
-    # Iterate through the DataLoader to get one dictionary for each data point
-    for batch in dataloader1:
-        images, labels = batch  # Unpack the batch into images and labels
-        # for i in range(len(images)):
-        #     image = images[i]
-        #     label = labels['passage'][i]
-            # Process the image and label as needed
-            # 'image' and 'label' are now one dictionary for each data point in the batch
+# Iterate through the DataLoader to get one dictionary for each data point
+for batch in dataloader1:
+    images, labels = batch  # Unpack the batch into images and labels
+    # for i in range(len(images)):
+    #     image = images[i]
+    #     label = labels['passage'][i]
+        # Process the image and label as needed
+        # 'image' and 'label' are now one dictionary for each data point in the batch
 #     for i, data in tqdm.tqdm(enumerate(dataloader1)):
 #         print(i)
 #         print(data[0].shape)
