@@ -7,7 +7,7 @@ SOS_token = 0
 device = torch.device("cuda:0" if True else "cpu")
 MAX_LENGTH = 160
 class Encoder(nn.Module):
-    def __init__(self, base_filters=64, adaptive_pool_size=(90, 90)):
+    def __init__(self, base_filters=16, adaptive_pool_size=(60, 60)):
         super(Encoder, self).__init__()
 
         # Initial layers before splitting into pathways
@@ -18,19 +18,19 @@ class Encoder(nn.Module):
         )
 
         # Define deeper pathways with multiple layers
-        self.pathway1 = self._make_layers(base_filters, kernel_size=3, num_layers=5)
-        self.pathway2 = self._make_layers(base_filters, kernel_size=7, num_layers=5)
-        self.pathway3 = self._make_layers(base_filters, kernel_size=9, num_layers=5)
+        self.pathway1 = self._make_layers(base_filters, kernel_size=3, num_layers=3)
+        self.pathway2 = self._make_layers(base_filters, kernel_size=7, num_layers=2)
+        self.pathway3 = self._make_layers(base_filters, kernel_size=9, num_layers=2)
 
         # Reduction to 128 channels for each pathway
-        self.reduce_channels = nn.Conv2d(base_filters * 3, 128, kernel_size=1, stride=1)
+        self.reduce_channels = nn.Conv2d(base_filters * 3, 16, kernel_size=1, stride=1)
 
         # Additional convolutional layers after channel reduction
         self.additional_convs = nn.Sequential(
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(16, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(),
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(),
             nn.AdaptiveAvgPool2d(adaptive_pool_size)
@@ -38,19 +38,19 @@ class Encoder(nn.Module):
 
         # Additional downsampling convolutional layer
         self.downsample = nn.Sequential(
-            nn.Conv2d(128, 64, kernel_size=7, stride=3, padding=3),  # This will reduce 90x90 to 30x30
-            nn.BatchNorm2d(64),
+            nn.Conv2d(128, 16, kernel_size=7, stride=3, padding=3),  # This will reduce 90x90 to 30x30
+            nn.BatchNorm2d(16),
             nn.LeakyReLU()
         )
 
         # Calculate the size of the feature map after downsampling
-        downsampled_output_size = (30, 30)  # This is the expected output size after downsampling
+        downsampled_output_size = (20, 20)  # This is the expected output size after downsampling
 
         # Intermediate dense layer to extract more complex features
-        self.intermediate_dense = nn.Linear(downsampled_output_size[0] * downsampled_output_size[1] * 64, 512)
+        self.intermediate_dense = nn.Linear(downsampled_output_size[0] * downsampled_output_size[1] * 16, 256)
 
         # Final feature vector layer to output a vector of size 116
-        self.feature_vector_layer = nn.Linear(512, 116)
+        self.feature_vector_layer = nn.Linear(256, 116)
 
         # Weight initialization
         self.apply(self.initialize_weights)
@@ -83,10 +83,10 @@ class Encoder(nn.Module):
         features = self.additional_convs(reduced_features)
 
         # Downsample the feature maps to reduce the size
-        features = self.downsample(features)
+        features1 = self.downsample(features)
 
         # Flatten the features for the dense layers
-        flattened_features = features.view(features.size(0), -1)
+        flattened_features = features1.view(features1.size(0), -1)
 
         # Apply the intermediate dense layer
         intermediate_features = self.intermediate_dense(flattened_features)
@@ -111,17 +111,24 @@ class Encoder(nn.Module):
 
 
 class FeatureExtractor(nn.Module):
-    def __init__(self, base_filters=64, reduced_filters=64, output_features=12):
+    def __init__(self, base_filters=16, reduced_filters=8, output_features=12):
         super(FeatureExtractor, self).__init__()
 
+        # Initial layers before splitting into pathways
+        self.initial_conv = nn.Sequential(
+            nn.Conv2d(3, base_filters, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(base_filters),
+            nn.LeakyReLU()
+        )
+
         # Define pathways with kernel sizes 3, 7, and 13, each with 3 layers
-        self.pathway1 = self._make_layers(base_filters, kernel_size=3, num_layers=3)
-        self.pathway2 = self._make_layers(base_filters, kernel_size=7, num_layers=3)
-        self.pathway3 = self._make_layers(base_filters, kernel_size=13, num_layers=3)
+        self.pathway1 = self._make_layers(base_filters, kernel_size=3, num_layers=2)
+        self.pathway2 = self._make_layers(base_filters, kernel_size=7, num_layers=2)
+        self.pathway3 = self._make_layers(base_filters, kernel_size=13, num_layers=2)
 
         # Reduction layer to fewer channels and higher stride to reduce size
         self.reduce_size_and_channels = nn.Sequential(
-            nn.Conv2d(base_filters * 3, reduced_filters, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(base_filters * 3, reduced_filters, kernel_size=3, stride=3, padding=1),
             # This will reduce size roughly to half
             nn.BatchNorm2d(reduced_filters),
             nn.LeakyReLU()
@@ -134,8 +141,10 @@ class FeatureExtractor(nn.Module):
         # Final layer to output a vector with the size of 1x12
         self.final_layer = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(reduced_filters * 45 * 45, output_features),
-            nn.ReLU()  # Ensures all output features are non-negative
+            nn.Linear(reduced_filters * 40 * 40, 128),
+            nn.ReLU(),  # Ensures all output features are non-negative
+            nn.Linear(128, output_features),
+            nn.ReLU()
         )
 
         # Weight initialization
@@ -144,12 +153,16 @@ class FeatureExtractor(nn.Module):
     def _make_layers(self, in_channels, kernel_size, num_layers):
         layers = []
         for _ in range(num_layers):
-            layers.append(nn.Conv2d(in_channels, in_channels, kernel_size=kernel_size, padding=kernel_size // 2))
+            layers.append(nn.Conv2d(in_channels, in_channels, kernel_size=kernel_size, stride=2, padding=kernel_size // 2))
             layers.append(nn.BatchNorm2d(in_channels))
             layers.append(nn.LeakyReLU())
         return nn.Sequential(*layers)
 
     def forward(self, x):
+
+        # Apply the initial convolutional layers
+        x = self.initial_conv(x)
+
         # Apply each pathway
         p1 = self.pathway1(x)
         p2 = self.pathway2(x)
@@ -167,7 +180,7 @@ class FeatureExtractor(nn.Module):
         # Note: feature_vector elements will be non-negative due to ReLU,
         # but not necessarily <= 1. If needed, add scaling here.
 
-        return feature_vector
+        return feature_vector.float()
 
     @staticmethod
     def initialize_weights(m):
@@ -192,7 +205,6 @@ class BahdanauAttention(nn.Module):
         self.Va = nn.Linear(hidden_size, 1)
 
     def forward(self, query, keys):
-        keys = keys.view(keys.shape[0], keys.shape[1], keys.shape[2]*keys.shape[3] ).permute(0, 2 ,1)
         scores = self.Va(torch.tanh(self.Wa(query) + self.Ua(keys)))
         scores = scores.squeeze(2).unsqueeze(1)
 
@@ -251,7 +263,7 @@ class AttnDecoderRNN(nn.Module):
         output, hidden = self.gru(input_gru, hidden)
         output = self.out(output)
 
-        return output, hidden, attn_weights
+        return output.float(), hidden.float(), attn_weights
 
     def one_hot_encode(self, input_tensor):
         # Assuming input_tensor contains integer values from 0 to 127
@@ -271,4 +283,4 @@ class EncoderRNN(nn.Module):
 
     def forward(self, input, initial_hidden=None):
         output, hidden = self.gru(input, initial_hidden)
-        return output, hidden
+        return output.float(), hidden.float()
