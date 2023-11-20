@@ -122,7 +122,7 @@ else:
     matching_row = matching_row_list[0]
 vertices = literal_eval(labels.iloc[matching_row]['PERSON_COORD'])
 draw_rectangle(img, vertices)
-# draw_rectangle(img, transform_vertices([(0,40),(720, 40),(720,680),(0, 680)], get_transformation_matrix(-labels.iloc[matching_row].ROTATION*180, labels.iloc[matching_row].SCALE, literal_eval(labels.iloc[matching_row].TRANSPORT))))
+draw_rectangle(img, transform_vertices([(0,40),(720, 40),(720,680),(0, 680)], get_transformation_matrix(-labels.iloc[matching_row].ROTATION*180, labels.iloc[matching_row].SCALE, literal_eval(labels.iloc[matching_row].TRANSPORT))))
 
 
 

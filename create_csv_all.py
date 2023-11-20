@@ -149,7 +149,7 @@ trans = transforms.Compose([
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
 
-csv_path = '/home/kasra/kasra_files/data-shenasname/data_loc'
+csv_path = '/home/kasra/kasra_files/data-shenasname/data_loc_ID_card'
 files = glob.glob('/home/kasra/kasra_files/data-shenasname/*.CSV') + glob.glob('/home/kasra/kasra_files/data-shenasname/*.csv')
 file_list = []
 create_csv_if_not_exists(csv_path)

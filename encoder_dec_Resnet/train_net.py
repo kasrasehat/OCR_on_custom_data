@@ -374,14 +374,12 @@ def main():
     device = torch.device("cuda:0" if use_cuda else "cpu")
     print(device)
 
-    encoderCNN = Encoder(base_filters=16, adaptive_pool_size=(60, 60)).to(device)
-    feature_extractor = FeatureExtractor(base_filters=16, reduced_filters=8, output_features=12).to(device)
+    encoderCNN = Encoder().to(device)
     encoderRNN = EncoderRNN(input_size=128, hidden_size=128, dropout_p=0).to(device)
     decoderRNN = AttnDecoderRNN(hidden_size=128, output_size=128, dropout_p=0).to(device)
 
     encoderCNN_optimizer = torch.optim.Adam(encoderCNN.parameters(), lr=args.lr)
     decoderRNN_optimizer = torch.optim.Adam(decoderRNN.parameters(), lr=args.lr)
-    feature_extractor_optimizer = torch.optim.Adam(feature_extractor.parameters(), lr=args.lr)
     encoderRNN_optimizer = torch.optim.Adam(encoderRNN.parameters(), lr=args.lr)
     # , weight_decay=4e-4
     scheduler_enc = StepLR(encoderCNN_optimizer, step_size=1, gamma=args.gamma)
@@ -394,7 +392,6 @@ def main():
             checkpoint = torch.load(args.weight)
             try:
                 encoderCNN.load_state_dict(checkpoint['state_dict_encoderCNN'])
-                feature_extractor.load_state_dict(checkpoint['state_dict_feature_extractor'])
                 encoderRNN.load_state_dict(checkpoint['state_dict_encoderRNN'])
                 decoderRNN.load_state_dict(checkpoint['state_dict_decoderRNN'])
             except Exception as e:
