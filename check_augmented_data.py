@@ -85,6 +85,7 @@ def draw_rectangle(image_path, vertices):
 
     # Read the image using OpenCV
     image = cv2.imread(image_path)
+    image = cv2.resize(image, (720, 720))
 
     # Check if the image was loaded successfully
     if image is None:
@@ -104,7 +105,7 @@ def draw_rectangle(image_path, vertices):
     cv2.destroyAllWindows()
 
 
-img = '/home/kasra/kasra_files/data-shenasname/ai_files_20230606_2_A/0011852879_0.jpg'
+img = '/home/kasra/kasra_files/data-shenasname/ai_files_20230528/0010134794_0.jpg'
 csv_path = '/'.join(str(f) for f in img.split('.')[0].split('/')[:-2]) + '/'+ '/'.join(str(f) for f in img.split('.')[0].split('/')[-2:-1]).replace('files', 'metadata') + '.csv'
 id, cls = img.split('.')[0].split('/')[-1].split('_')
 id = int(id)
@@ -121,7 +122,7 @@ if len(matching_row_list) == 0 and int(cls) in [2, 3]:
 else:
     matching_row = matching_row_list[0]
 vertices = literal_eval(labels.iloc[matching_row]['PERSON_COORD'])
-draw_rectangle(img, vertices)
+# draw_rectangle(img, vertices)
 draw_rectangle(img, transform_vertices([(0,40),(720, 40),(720,680),(0, 680)], get_transformation_matrix(-labels.iloc[matching_row].ROTATION*180, labels.iloc[matching_row].SCALE, literal_eval(labels.iloc[matching_row].TRANSPORT))))
 
 

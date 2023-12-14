@@ -170,6 +170,17 @@ def save_image(image, path):
     cv2.imwrite(path, image)
 
 
+
+
+
+
+
+
+
+
+
+
+
 # Model
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 model = torch.hub.load('ultralytics/yolov5', 'yolov5l').to(device)  # or yolov5m, yolov5l, yolov5x, custom

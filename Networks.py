@@ -208,7 +208,7 @@ class CustomModel(nn.Module):
 
         # Regression Head
         self.regression_head = nn.Sequential(
-            *list(resnet2.children())[-4: -1],  # ResNet continuation from after img_features_layer
+            *list(resnet2.children())[-4: -1],  # ResNet's continuation from after img_features_layer
             nn.Flatten(),
             nn.Linear(2048, 256),  # Additional layer for extracting more complex features
             nn.ReLU(),
@@ -243,3 +243,40 @@ class CustomModel(nn.Module):
         feature_out = self.feature_head(img_features_input)
 
         return img_features.float(), feature_out.float().unsqueeze(0), regression_out.float()
+
+
+
+class CustomModel_mse(nn.Module):
+    def __init__(self):
+        super(CustomModel_mse, self).__init__()
+
+        # Load pre-trained ResNet-152
+        resnet1 = models.resnet152(pretrained=True)
+
+        # Backbone
+        self.backbone = nn.Sequential(*list(resnet1.children())[:-4])
+
+        # Layer for img_features extraction
+
+        # Regression Head
+        self.regression_head = nn.Sequential(
+            *list(resnet1.children())[-4: -1],  # ResNet's continuation from after img_features_layer
+            nn.Flatten(),
+            nn.Linear(2048, 256),  # Additional layer for extracting more complex features
+            nn.ReLU(),
+            nn.Linear(256, 12),
+            nn.ReLU()
+        )
+
+        # Convolution layers for img_features (after removing upsample)
+        self.conv1 = nn.Conv2d(1024, 512, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(512, 128, kernel_size=1, padding=0)
+
+    def forward(self, x):
+        # Backbone
+        x = self.backbone(x)
+
+        # Regression Head
+        regression_out = self.regression_head(x)
+
+        return regression_out.float()
