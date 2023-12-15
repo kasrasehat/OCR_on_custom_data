@@ -8,6 +8,46 @@ import torchvision
 from torchvision import transforms
 import cv2
 from Networks import Encoder, DecoderRNN, CustomModel_mse
+from PIL import Image
+from ultralytics import YOLO
+import os
+from custom_dataloader import All_ID_card_DataLoader
+from torchvision import transforms
+from torch.utils.data import DataLoader
+
+def save_image(image, path):
+    """
+    Save an image to a specified path.
+
+    Parameters:
+        image (ndarray): The image to be saved.
+        path (str): The path where the image will be saved.
+    """
+    # Create the directory if it doesn't exist
+    directory = os.path.dirname(path)
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+
+    # Save the image
+    cv2.imwrite(path, image)
+
+def crop_rotate_resize_pil(image_path, points, theta, new_height, new_width):
+    # Load the image
+    image = Image.open(image_path)
+
+    # Define the rectangle points and crop the image
+    # PIL expects the cropping box in the format: (left, upper, right, lower)
+    left, top, right, bottom = cv2.boundingRect(np.array(points, dtype=np.int32))
+    cropped_image = image.crop((left, top, left + right, top + bottom))
+
+    # Rotate the image
+    # PIL rotates counter-clockwise, hence we use negative value for theta
+    rotated_image = cropped_image.rotate(theta, expand=True)
+
+    # Resize the image
+    resized_image = np.array(rotated_image.resize((new_width, new_height)))
+
+    return resized_image
 
 
 def crop_rotate_resize(image_path, points, theta, new_height, new_width):
@@ -154,17 +194,19 @@ trans = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
+YOLO = YOLO("/home/kasra/PycharmProjects/YOLOv8_customize/runs/detect/train/weights/best.pt")  # load a pretrained model (recommended for training)
 encoder = CustomModel_mse().to(device)
 weights = torch.load("/home/kasra/PycharmProjects/Larkimas/model_checkpoints/epoch_4_mse_loss: 0.003.pt")
-
 try:
     encoder.load_state_dict(weights['state_dict encoder'])
 except:
     encoder.load_state_dict(weights)
 
+dataset1 = All_ID_card_DataLoader(data_file='/home/kasra/kasra_files/data-shenasname/data_loc', transform=trans)
+dataloader1 = DataLoader(dataset1, batch_size=1, shuffle=True, drop_last=True)
 with torch.no_grad():
 
-    image_path = '/home/kasra/kasra_files/data-shenasname/ai_files_20230706_1_A/0011685212_1.jpg'
+    image_path = '/home/kasra/kasra_files/data-shenasname/ai_files_20230706_1_A/0014059071_0.jpg'
     encoder.eval()
     image = cv2.imread(image_path)
     image = trans(image).to(device)
@@ -184,8 +226,8 @@ with torch.no_grad():
                                            get_transformation_matrix(-transforms[0, 8] * 180, transforms[0, 9], transforms[0, -2:]))
     clamped_points = clamp_points(points)
 
-    draw_rectangle(image_path, transform_vertices([(0, 40), (720, 40), (720, 640), (0, 640)],
-                                          get_transformation_matrix(-transforms[0, 8] * 180, transforms[0, 9], transforms[0, -2:])))
+    # draw_rectangle(image_path, transform_vertices([(0, 40), (720, 40), (720, 640), (0, 640)],
+    #                                       get_transformation_matrix(-transforms[0, 8] * 180, transforms[0, 9], transforms[0, -2:])))
 
     # [(0, 40), (720, 40), (720, 680), (0, 680)]
 
@@ -196,10 +238,14 @@ with torch.no_grad():
     new_width = 720
 
     # Replace 'path_to_your_image.jpg' with the path to your image
-    cropped_rotated_resized_image = crop_rotate_resize(image_path, clamped_points, theta, new_height, new_width)
+    cropped_rotated_resized_image = crop_rotate_resize_pil(image_path, clamped_points, theta, new_height, new_width)
+    img = '/home/kasra/PycharmProjects/YOLOv8_customize/extra_files/image1.jpg'
+
+    save_image(cropped_rotated_resized_image, img)
+    results = YOLO.predict(img, save=True, imgsz=640, conf=0.3, save_txt=False, show=True)
 
     # You can save the result or display it using cv2
     # cv2.imwrite('output_image.jpg', cropped_rotated_resized_image)
-    cv2.imshow('Cropped, Rotated, and Resized Image', cropped_rotated_resized_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow('Cropped, Rotated, and Resized Image', cropped_rotated_resized_image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
