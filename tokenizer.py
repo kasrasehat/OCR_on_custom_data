@@ -12,7 +12,7 @@ def read_pickle_file(file_path):
         return f"An error occurred: {e}"
 
 
-max_length = 160
+max_length = 35
 tokens = read_pickle_file('/home/kasra/PycharmProjects/Larkimas/tokens_list.pkl')
 tokens[:0] = ['<sos>', '<eos>', 'a', 'b', 'c', 'd']
 tokens.append('<pad>')

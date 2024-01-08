@@ -1,4 +1,4 @@
-from custom_dataloader import All_ID_card_DataLoader
+from custom_dataloader import final_dataLoader
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import glob
@@ -55,20 +55,22 @@ trans = transforms.Compose([
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
 
-files = glob.glob('/home/kasra/kasra_files/data-shenasname/*.CSV') + glob.glob('/home/kasra/kasra_files/data-shenasname/*.csv')
+files = os.listdir('/home/kasra/kasra_files/data-shenasname/cropped_data1')
 file_list = []
+# for file in files:
+#     file_list.append([file, file.split('.')[0].replace('metadata', 'files')])
+# tokens = []
+# max = 0
+# min = 100
+# p = 0
 for file in files:
-    file_list.append([file, file.split('.')[0].replace('metadata', 'files')])
-tokens = []
-max = 0
-min = 100
-p = 0
-dataset1 = All_ID_card_DataLoader(data_file='/home/kasra/kasra_files/data-shenasname/data_loc', transform=trans)
-dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
+    data_path = '/home/kasra/kasra_files/data-shenasname/cropped_data1'+ '/'+ file
+    dataset1 = final_dataLoader(data_file=data_path , transform=trans)
+    dataloader1 = DataLoader(dataset1, batch_size=batch_size, shuffle=True, drop_last=True)
 
-# Iterate through the DataLoader to get one dictionary for each data point
-for batch in dataloader1:
-    images, labels = batch  # Unpack the batch into images and labels
+    # Iterate through the DataLoader to get one dictionary for each data point
+    for batch in dataloader1:
+        images, labels = batch[0], batch[1]  # Unpack the batch into images and labels
     # for i in range(len(images)):
     #     image = images[i]
     #     label = labels['passage'][i]

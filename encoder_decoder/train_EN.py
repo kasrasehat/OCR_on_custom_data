@@ -86,7 +86,7 @@ def train(args, encoderCNN, feature_extractor, encoderRNN, decoderRNN, encoderCN
           , feature_extractor_optimizer, encoderRNN_optimizer, decoderRNN_optimizer,
           device, dataloader1, epoch, start, criterion_mse, criterion_ctc, batch_size):
     encoderCNN.train()
-    feature_extractor.train()
+    # feature_extractor.train()
     encoderRNN.train()
     decoderRNN.train()
     batch_loss = 0
@@ -174,81 +174,81 @@ def train(args, encoderCNN, feature_extractor, encoderRNN, decoderRNN, encoderCN
 
     tot_loss_mse = 0
     group_loss_mse = 0
-    for batch_idx, (images, target) in enumerate(dataloader1):
+    # for batch_idx, (images, target) in enumerate(dataloader1):
+    #
+    #     try:
+    #         print('Start train model for reducing the MSE loss')
+    #         if batch_idx == 0:
+    #
+    #             print(f'The encoderCNN has {count_parameters(encoderCNN)} parameters in sum')
+    #             print(f'The feature_extractor has {count_parameters(feature_extractor)} parameters in sum')
+    #             print(f'The encoderRNN has {count_trainable_parameters(encoderRNN)} trainable parameters')
+    #             print(f'The decoderRNN has {count_trainable_parameters(decoderRNN)} trainable parameters')
+    #
+    #         images, target = images.to(device), target
+    #         target_encoder = torch.cat((target['person_coordinate'], target['rotation'].unsqueeze(1), target['scale'].unsqueeze(1), target['transport']), dim=1).to(device).float()
+    #         target_decoder = target['encoded_passage'].to(device)
+    #         # feature_map, feature_vector = encoderCNN(images)
+    #         features = feature_extractor(images)
+    #         # encoderRNN_init_hidden = torch.cat((feature_vector.unsqueeze(0), target_encoder.unsqueeze(0)), dim=2)
+    #         # encoderRNN_output, decoderRNN_init_hidden = encoderRNN(feature_map.view(batch_size, feature_map.size()[1], feature_map.size()[2] * feature_map.size()[3]).permute(0,2,1)
+    #         #                                                        , encoderRNN_init_hidden)
+    #         # output_ctc, _, _ = decoderRNN(encoderRNN_output, decoderRNN_init_hidden, None)
+    #         # input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
+    #         # target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
+    #
+    #         # _, topi = output_ctc.topk(1)
+    #         # decoded_ids = topi.squeeze().permute(1, 0)
+    #         # for i in range(batch_size):
+    #         #     zero_numbers = (target_decoder[i, :] == 127).sum()
+    #         #     target_lengths[i] = target_lengths[i] - zero_numbers
+    #         #     # zero_numbers1 = (decoded_ids[i, :] == 127).sum()
+    #         #     # input_lengths[i] = input_lengths[i] - zero_numbers1
+    #         #
+    #         # encoderCNN_optimizer.zero_grad()
+    #         feature_extractor_optimizer.zero_grad()
+    #         # encoderRNN_optimizer.zero_grad()
+    #         # decoderRNN_optimizer.zero_grad()
+    #         # CTC Loss
+    #         # with torch.backends.cudnn.flags(enabled=False):
+    #         #     loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
+    #         # loss_ctc = nn.functional.ctc_loss(
+    #         #             output_ctc,
+    #         #             target_decoder,
+    #         #             input_lengths,
+    #         #             target_lengths,
+    #         #             blank=127,
+    #         #             reduction='sum',
+    #         #             zero_infinity=True,
+    #         #         )
+    #
+    #         loss_mse = criterion_mse(features, target_encoder)
+    #         print(f'mse loss sum is {loss_mse.item() * batch_size}')
+    #         # loss_mse.backward()
+    #         # encoder_optimizer.step()
+    #         tot_loss_mse += loss_mse.item() * batch_size
+    #         # tot_loss_ctc += loss_ctc.item() * batch_size
+    #         # loss_ctc.backward()
+    #         loss_mse.backward()
+    #         # encoderCNN_optimizer.step()
+    #         feature_extractor_optimizer.step()
+    #         # encoderRNN_optimizer.step()
+    #         # decoderRNN_optimizer.step()
+    #         # group_loss_ctc += loss_ctc.item() * batch_size
+    #         group_loss_mse += loss_mse.item() * batch_size
+    #
+    #         if (batch_idx +1) % args.log_interval == 0 and (batch_idx != 0):
+    #             print('Train Epoch {}: [{}/{} ({:.0f}%)]\t Loss mse: {:.6f}'.format(
+    #             epoch, (batch_idx+1) * batch_size, len(dataloader1)* batch_size,
+    #                     100 * (batch_idx+1) / len(dataloader1),
+    #                     group_loss_mse/(args.log_interval * batch_size)))
+    #             group_loss_ctc = 0
+    #             group_loss_mse = 0
+    #             torch.cuda.empty_cache()
+    #     except Exception as e:
+    #         print(f"An error occurred while reading: {e}\n")
 
-        try:
-            print('Start train model for reducing the MSE loss')
-            if batch_idx == 0:
-
-                print(f'The encoderCNN has {count_parameters(encoderCNN)} parameters in sum')
-                print(f'The feature_extractor has {count_parameters(feature_extractor)} parameters in sum')
-                print(f'The encoderRNN has {count_trainable_parameters(encoderRNN)} trainable parameters')
-                print(f'The decoderRNN has {count_trainable_parameters(decoderRNN)} trainable parameters')
-
-            images, target = images.to(device), target
-            target_encoder = torch.cat((target['person_coordinate'], target['rotation'].unsqueeze(1), target['scale'].unsqueeze(1), target['transport']), dim=1).to(device).float()
-            target_decoder = target['encoded_passage'].to(device)
-            # feature_map, feature_vector = encoderCNN(images)
-            features = feature_extractor(images)
-            # encoderRNN_init_hidden = torch.cat((feature_vector.unsqueeze(0), target_encoder.unsqueeze(0)), dim=2)
-            # encoderRNN_output, decoderRNN_init_hidden = encoderRNN(feature_map.view(batch_size, feature_map.size()[1], feature_map.size()[2] * feature_map.size()[3]).permute(0,2,1)
-            #                                                        , encoderRNN_init_hidden)
-            # output_ctc, _, _ = decoderRNN(encoderRNN_output, decoderRNN_init_hidden, None)
-            # input_lengths = torch.full((batch_size,), 160)  # All logits sequences have length 160
-            # target_lengths = torch.full((batch_size,), 160)  # All target sequences have length 160
-
-            # _, topi = output_ctc.topk(1)
-            # decoded_ids = topi.squeeze().permute(1, 0)
-            # for i in range(batch_size):
-            #     zero_numbers = (target_decoder[i, :] == 127).sum()
-            #     target_lengths[i] = target_lengths[i] - zero_numbers
-            #     # zero_numbers1 = (decoded_ids[i, :] == 127).sum()
-            #     # input_lengths[i] = input_lengths[i] - zero_numbers1
-            #
-            # encoderCNN_optimizer.zero_grad()
-            feature_extractor_optimizer.zero_grad()
-            # encoderRNN_optimizer.zero_grad()
-            # decoderRNN_optimizer.zero_grad()
-            # CTC Loss
-            # with torch.backends.cudnn.flags(enabled=False):
-            #     loss_ctc = criterion_ctc(output_ctc, target_decoder, input_lengths, target_lengths)
-            # loss_ctc = nn.functional.ctc_loss(
-            #             output_ctc,
-            #             target_decoder,
-            #             input_lengths,
-            #             target_lengths,
-            #             blank=127,
-            #             reduction='sum',
-            #             zero_infinity=True,
-            #         )
-
-            loss_mse = criterion_mse(features, target_encoder)
-            print(f'mse loss sum is {loss_mse.item() * batch_size}')
-            # loss_mse.backward()
-            # encoder_optimizer.step()
-            tot_loss_mse += loss_mse.item() * batch_size
-            # tot_loss_ctc += loss_ctc.item() * batch_size
-            # loss_ctc.backward()
-            loss_mse.backward()
-            # encoderCNN_optimizer.step()
-            feature_extractor_optimizer.step()
-            # encoderRNN_optimizer.step()
-            # decoderRNN_optimizer.step()
-            # group_loss_ctc += loss_ctc.item() * batch_size
-            group_loss_mse += loss_mse.item() * batch_size
-
-            if (batch_idx +1) % args.log_interval == 0 and (batch_idx != 0):
-                print('Train Epoch {}: [{}/{} ({:.0f}%)]\t Loss mse: {:.6f}'.format(
-                epoch, (batch_idx+1) * batch_size, len(dataloader1)* batch_size,
-                        100 * (batch_idx+1) / len(dataloader1),
-                        group_loss_mse/(args.log_interval * batch_size)))
-                group_loss_ctc = 0
-                group_loss_mse = 0
-                torch.cuda.empty_cache()
-        except Exception as e:
-            print(f"An error occurred while reading: {e}\n")
-
-        torch.cuda.empty_cache()
+    torch.cuda.empty_cache()
 
     print('Epoch {} CTC TRAINING COMPLETED. final losses:\nLoss mse: {:.6f}\t Loss ctc: {:.6f}'.format(epoch, tot_loss_mse / (len(dataloader1)*batch_size), tot_loss_ctc/ (len(dataloader1)*batch_size)))
     torch.cuda.empty_cache()
@@ -317,13 +317,13 @@ def evaluation(args, encoderCNN, feature_extractor, encoderRNN, decoderRNN
 
 
         torch.cuda.empty_cache()
-        if args.save_model and (mse_loss < mse_loss_min):
-
-            filename = ('/home/kasra/PycharmProjects/Larkimas/encoder_decoder/model_checkpoints/feature_extractor: epoch: {0} mse_l:{1}.pt').format(epoch, np.round(mse_loss, 3))
-            torch.save({'epoch': epoch, 'state_dict feature_extractor': feature_extractor.state_dict(),
-                        'feature_extractor_optimizer': feature_extractor_optimizer.state_dict()}, filename)
-            print('feature extractor model has been saved in {}'.format(filename))
-            mse_loss_min = mse_loss
+        # if args.save_model and (mse_loss < mse_loss_min):
+        #
+        #     filename = ('/home/kasra/PycharmProjects/Larkimas/encoder_decoder/model_checkpoints/feature_extractor: epoch: {0} mse_l:{1}.pt').format(epoch, np.round(mse_loss, 3))
+        #     torch.save({'epoch': epoch, 'state_dict feature_extractor': feature_extractor.state_dict(),
+        #                 'feature_extractor_optimizer': feature_extractor_optimizer.state_dict()}, filename)
+        #     print('feature extractor model has been saved in {}'.format(filename))
+        #     mse_loss_min = mse_loss
 
         if args.save_model and (ctc_loss < ctc_loss_min):
             filename = ('/home/kasra/PycharmProjects/Larkimas/encoder_decoder/model_checkpoints'
@@ -385,9 +385,9 @@ def main():
     encoderRNN_optimizer = torch.optim.Adam(encoderRNN.parameters(), lr=args.lr)
     # , weight_decay=4e-4
     scheduler_enc = StepLR(encoderCNN_optimizer, step_size=1, gamma=args.gamma)
-    scheduler_dec = StepLR(feature_extractor_optimizer, step_size=1, gamma=args.gamma)
-    scheduler_enc = StepLR(encoderRNN_optimizer, step_size=1, gamma=args.gamma)
-    scheduler_enc = StepLR(decoderRNN_optimizer, step_size=1, gamma=args.gamma)
+    scheduler_feat = StepLR(feature_extractor_optimizer, step_size=1, gamma=args.gamma)
+    scheduler_enc_rnn = StepLR(encoderRNN_optimizer, step_size=1, gamma=args.gamma)
+    scheduler_dec = StepLR(decoderRNN_optimizer, step_size=1, gamma=args.gamma)
 
     if args.weight:
         if os.path.isfile(args.weight):
@@ -481,6 +481,7 @@ def main():
 
         scheduler_enc.step()
         scheduler_dec.step()
+        scheduler_enc_rnn.step()
 
 if __name__ == '__main__':
     main()
